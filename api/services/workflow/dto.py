@@ -51,6 +51,8 @@ class NodeDataDTO(BaseModel):
     extraction_enabled: bool = False
     extraction_prompt: Optional[str] = None
     extraction_variables: Optional[list[ExtractionVariableDTO]] = None
+    call_tags_enabled: bool = False
+    call_tags_prompt: Optional[str] = None
     add_global_prompt: bool = True
     wait_for_user_response: bool = False
     wait_for_user_response_timeout: Optional[float] = None

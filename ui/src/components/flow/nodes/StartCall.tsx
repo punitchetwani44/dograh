@@ -42,6 +42,10 @@ interface StartCallEditFormProps {
     setExtractionPrompt: (value: string) => void;
     variables: ExtractionVariable[];
     setVariables: (vars: ExtractionVariable[]) => void;
+    callTagsEnabled: boolean;
+    setCallTagsEnabled: (value: boolean) => void;
+    callTagsPrompt: string;
+    setCallTagsPrompt: (value: string) => void;
     toolUuids: string[];
     setToolUuids: (value: string[]) => void;
     documentUuids: string[];
@@ -72,6 +76,8 @@ export const StartCall = memo(({ data, selected, id }: StartCallNodeProps) => {
     const [extractionEnabled, setExtractionEnabled] = useState(data.extraction_enabled ?? false);
     const [extractionPrompt, setExtractionPrompt] = useState(data.extraction_prompt ?? "");
     const [variables, setVariables] = useState<ExtractionVariable[]>(data.extraction_variables ?? []);
+    const [callTagsEnabled, setCallTagsEnabled] = useState(data.call_tags_enabled ?? false);
+    const [callTagsPrompt, setCallTagsPrompt] = useState(data.call_tags_prompt ?? "");
     const [toolUuids, setToolUuids] = useState<string[]>(data.tool_uuids ?? []);
     const [documentUuids, setDocumentUuids] = useState<string[]>(data.document_uuids ?? []);
 
@@ -96,6 +102,8 @@ export const StartCall = memo(({ data, selected, id }: StartCallNodeProps) => {
             extraction_enabled: extractionEnabled,
             extraction_prompt: extractionPrompt,
             extraction_variables: variables,
+            call_tags_enabled: callTagsEnabled,
+            call_tags_prompt: callTagsPrompt,
             tool_uuids: toolUuids.length > 0 ? toolUuids : undefined,
             document_uuids: documentUuids.length > 0 ? documentUuids : undefined,
         });
@@ -119,6 +127,8 @@ export const StartCall = memo(({ data, selected, id }: StartCallNodeProps) => {
             setExtractionEnabled(data.extraction_enabled ?? false);
             setExtractionPrompt(data.extraction_prompt ?? "");
             setVariables(data.extraction_variables ?? []);
+            setCallTagsEnabled(data.call_tags_enabled ?? false);
+            setCallTagsPrompt(data.call_tags_prompt ?? "");
             setToolUuids(data.tool_uuids ?? []);
             setDocumentUuids(data.document_uuids ?? []);
         }
@@ -138,6 +148,8 @@ export const StartCall = memo(({ data, selected, id }: StartCallNodeProps) => {
             setExtractionEnabled(data.extraction_enabled ?? false);
             setExtractionPrompt(data.extraction_prompt ?? "");
             setVariables(data.extraction_variables ?? []);
+            setCallTagsEnabled(data.call_tags_enabled ?? false);
+            setCallTagsPrompt(data.call_tags_prompt ?? "");
             setToolUuids(data.tool_uuids ?? []);
             setDocumentUuids(data.document_uuids ?? []);
         }
@@ -241,6 +253,10 @@ export const StartCall = memo(({ data, selected, id }: StartCallNodeProps) => {
                         setExtractionPrompt={setExtractionPrompt}
                         variables={variables}
                         setVariables={setVariables}
+                        callTagsEnabled={callTagsEnabled}
+                        setCallTagsEnabled={setCallTagsEnabled}
+                        callTagsPrompt={callTagsPrompt}
+                        setCallTagsPrompt={setCallTagsPrompt}
                         toolUuids={toolUuids}
                         setToolUuids={setToolUuids}
                         documentUuids={documentUuids}
@@ -275,6 +291,10 @@ const StartCallEditForm = ({
     setExtractionPrompt,
     variables,
     setVariables,
+    callTagsEnabled,
+    setCallTagsEnabled,
+    callTagsPrompt,
+    setCallTagsPrompt,
     toolUuids,
     setToolUuids,
     documentUuids,
@@ -411,13 +431,16 @@ const StartCallEditForm = ({
                 <div className="border rounded-md p-3 mt-2 space-y-2 bg-muted/20">
                     <Label>Extraction Prompt</Label>
                     <Label className="text-xs text-muted-foreground">
-                        Provide an overall extraction prompt that guides how variables should be extracted from the conversation.
+                        Provide an extraction prompt that guides how variables should be extracted from the conversation.
+                        Example: You are given transcript of a conversation between a home owner and an insurance provider.
+                        Extract the below variables.
                     </Label>
                     <Textarea
                         value={extractionPrompt}
                         onChange={(e) => setExtractionPrompt(e.target.value)}
                         className="min-h-[80px] max-h-[200px] resize-none"
                         style={{ overflowY: 'auto' }}
+                        placeholder="Example: You are given transcript of a conversation between a home owner and an insurance provider. Extract the below variables."
                     />
 
                     <Label>Variables</Label>
@@ -458,6 +481,32 @@ const StartCallEditForm = ({
                     <Button variant="outline" size="sm" className="w-fit" onClick={handleAddVariable}>
                         <PlusIcon className="w-4 h-4 mr-1" /> Add Variable
                     </Button>
+                </div>
+            )}
+
+            {/* Call Tags Section */}
+            <div className="flex items-center space-x-2 pt-2">
+                <Switch id="enable-call-tags" checked={callTagsEnabled} onCheckedChange={setCallTagsEnabled} />
+                <Label htmlFor="enable-call-tags">Enable Call Tags Extraction</Label>
+                <Label className="text-xs text-muted-foreground ml-2">
+                    Extract tags from the conversation at this step to categorize the call.
+                </Label>
+            </div>
+
+            {callTagsEnabled && (
+                <div className="border rounded-md p-3 mt-2 space-y-2 bg-muted/20">
+                    <Label>Call Tags Prompt</Label>
+                    <Label className="text-xs text-muted-foreground">
+                        Provide a prompt that guides how call tags should be extracted from the conversation.
+                        Example: Extract tags that describe the outcome and topics discussed in this call.
+                    </Label>
+                    <Textarea
+                        value={callTagsPrompt}
+                        onChange={(e) => setCallTagsPrompt(e.target.value)}
+                        className="min-h-[80px] max-h-[200px] resize-none"
+                        style={{ overflowY: 'auto' }}
+                        placeholder="Example: Extract tags that describe the outcome and topics discussed in this call."
+                    />
                 </div>
             )}
 

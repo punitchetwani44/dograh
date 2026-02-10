@@ -43,6 +43,8 @@ class Node:
         self.extraction_enabled = data.extraction_enabled
         self.extraction_prompt = data.extraction_prompt
         self.extraction_variables = data.extraction_variables
+        self.call_tags_enabled = data.call_tags_enabled
+        self.call_tags_prompt = data.call_tags_prompt
         self.add_global_prompt = data.add_global_prompt
         self.detect_voicemail = data.detect_voicemail
         self.delayed_start = data.delayed_start

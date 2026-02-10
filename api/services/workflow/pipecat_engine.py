@@ -207,8 +207,9 @@ class PipecatEngine:
             )
             logger.info(f"Arguments: {function_call_params.arguments}")
 
-            # Perform variable extraction before transitioning to new node
+            # Perform variable extraction and call tags extraction before transitioning to new node
             await self._perform_variable_extraction_if_needed(self._current_node)
+            await self._perform_call_tags_extraction_if_needed(self._current_node)
 
             # Set context for the new node, so that when the function call result
             # frame is received by LLMContextAggregator and an LLM generation
@@ -413,6 +414,54 @@ class PipecatEngine:
             )
             await _do_extraction()
 
+    async def _perform_call_tags_extraction_if_needed(
+        self, node: Optional[Node], run_in_background: bool = True
+    ) -> None:
+        """Perform call tags extraction if the node has it enabled.
+
+        Extracted tags are merged into gathered_context["call_tags"].
+
+        Args:
+            node: The node to extract call tags from.
+            run_in_background: If True, runs extraction as a fire-and-forget task.
+                If False, awaits the extraction synchronously.
+        """
+        if not (node and node.call_tags_enabled):
+            return
+
+        parent_context = get_current_turn_context()
+        call_tags_prompt = self._format_prompt(node.call_tags_prompt or "")
+
+        async def _do_extraction():
+            try:
+                extracted_tags = (
+                    await self._variable_extraction_manager._perform_call_tags_extraction(
+                        parent_context, call_tags_prompt
+                    )
+                )
+                # Merge into existing call_tags (no duplicates)
+                existing_tags = self._gathered_context.get("call_tags", [])
+                for tag in extracted_tags:
+                    if tag not in existing_tags:
+                        existing_tags.append(tag)
+                self._gathered_context["call_tags"] = existing_tags
+                logger.debug(
+                    f"Call tags extraction completed. Tags: {existing_tags}"
+                )
+            except Exception as e:
+                logger.error(f"Error during call tags extraction: {str(e)}")
+
+        if run_in_background:
+            logger.debug(
+                f"Scheduling background call tags extraction for node: {node.name}"
+            )
+            asyncio.create_task(_do_extraction())
+        else:
+            logger.debug(
+                f"Performing synchronous call tags extraction for node: {node.name}"
+            )
+            await _do_extraction()
+
     async def _setup_llm_context(self, node: Node) -> None:
         """Common method to set up LLM context"""
         # Set node name for tracing
@@ -527,8 +576,11 @@ class PipecatEngine:
         # Mute the pipeline
         self._mute_pipeline = True
 
-        # Perform final variable extraction synchronously before ending
+        # Perform final variable extraction and call tags extraction synchronously before ending
         await self._perform_variable_extraction_if_needed(
+            self._current_node, run_in_background=False
+        )
+        await self._perform_call_tags_extraction_if_needed(
             self._current_node, run_in_background=False
         )
 

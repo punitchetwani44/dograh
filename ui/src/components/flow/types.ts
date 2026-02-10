@@ -21,6 +21,8 @@ export type FlowNodeData = {
     extraction_enabled?: boolean;
     extraction_prompt?: string;
     extraction_variables?: ExtractionVariable[];
+    call_tags_enabled?: boolean;
+    call_tags_prompt?: string;
     add_global_prompt?: boolean;
     wait_for_user_greeting?: boolean;
     detect_voicemail?: boolean;
