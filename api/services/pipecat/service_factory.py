@@ -156,7 +156,7 @@ def create_tts_service(user_config, audio_config: "AudioConfig"):
 
     Args:
         user_config: User configuration containing TTS settings
-        transport_type: Type of transport (e.g., 'stasis', 'twilio', 'webrtc')
+        transport_type: Type of transport (e.g., 'twilio', 'webrtc')
     """
     logger.info(
         f"Creating TTS service: provider={user_config.tts.provider}, model={user_config.tts.model}"

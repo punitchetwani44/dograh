@@ -18,7 +18,6 @@ from pipecat.services.llm_service import FunctionCallParams
 from pipecat.utils.enums import EndTaskReason
 
 if TYPE_CHECKING:
-    from api.services.telephony.stasis_rtp_connection import StasisRTPConnection
     from pipecat.frames.frames import Frame
     from pipecat.services.anthropic.llm import AnthropicLLMService
     from pipecat.services.google.llm import GoogleLLMService
@@ -82,9 +81,6 @@ class PipecatEngine:
         self._current_node: Optional[Node] = None
         self._gathered_context: dict = {}
         self._user_response_timeout_task: Optional[asyncio.Task] = None
-
-        # Stasis connection for immediate transfers
-        self._stasis_connection: Optional["StasisRTPConnection"] = None
 
         # Will be set later in initialize() when we have
         # access to _context
@@ -694,23 +690,6 @@ class PipecatEngine:
         which is useful when the task needs to be created after the engine.
         """
         self.task = task
-
-    def set_stasis_connection(
-        self, connection: Optional["StasisRTPConnection"]
-    ) -> None:
-        """Set the Stasis RTP connection for immediate transfers.
-
-        This allows the engine to initiate transfers immediately when XFER
-        disposition is detected, without waiting for pipeline shutdown.
-
-        Args:
-            connection: The StasisRTPConnection instance, or None for non-Stasis transports
-        """
-        self._stasis_connection = connection
-        if connection:
-            logger.debug(
-                f"Stasis connection set for immediate transfers: {connection.channel_id}"
-            )
 
     def set_audio_config(self, audio_config) -> None:
         """Set the audio configuration for the pipeline."""

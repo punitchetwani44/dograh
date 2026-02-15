@@ -33,14 +33,12 @@ from api.services.pipecat.service_factory import (
 from api.services.pipecat.tracing_config import setup_pipeline_tracing
 from api.services.pipecat.transport_setup import (
     create_cloudonix_transport,
-    create_stasis_transport,
     create_twilio_transport,
     create_vobiz_transport,
     create_vonage_transport,
     create_webrtc_transport,
 )
 from api.services.pipecat.ws_sender_registry import get_ws_sender
-from api.services.telephony.stasis_rtp_connection import StasisRTPConnection
 from api.services.workflow.dto import ReactFlowDTO
 from api.services.workflow.pipecat_engine import PipecatEngine
 from api.services.workflow.workflow import WorkflowGraph
@@ -364,52 +362,6 @@ async def run_pipeline_smallwebrtc(
     )
 
 
-async def run_pipeline_ari_stasis(
-    stasis_connection: StasisRTPConnection,
-    workflow_id: int,
-    workflow_run_id: int,
-    user_id: int,
-    call_context_vars: dict,
-) -> None:
-    """Run pipeline for ARI connections"""
-    logger.debug(
-        f"Running pipeline for ARI connection with workflow_id: {workflow_id} and workflow_run_id: {workflow_run_id}"
-    )
-    set_current_run_id(workflow_run_id)
-
-    # Get workflow to extract all pipeline configurations
-    workflow = await db_client.get_workflow(workflow_id, user_id)
-    vad_config = None
-    ambient_noise_config = None
-    if workflow and workflow.workflow_configurations:
-        if "vad_configuration" in workflow.workflow_configurations:
-            vad_config = workflow.workflow_configurations["vad_configuration"]
-        if "ambient_noise_configuration" in workflow.workflow_configurations:
-            ambient_noise_config = workflow.workflow_configurations[
-                "ambient_noise_configuration"
-            ]
-
-    # Create audio configuration for Stasis
-    audio_config = create_audio_config(WorkflowRunMode.STASIS.value)
-
-    transport = create_stasis_transport(
-        stasis_connection,
-        workflow_run_id,
-        audio_config,
-        vad_config,
-        ambient_noise_config,
-    )
-    await _run_pipeline(
-        transport,
-        workflow_id,
-        workflow_run_id,
-        user_id,
-        call_context_vars=call_context_vars,
-        audio_config=audio_config,
-        stasis_connection=stasis_connection,  # Pass connection for immediate transfers
-    )
-
-
 async def _run_pipeline(
     transport,
     workflow_id: int,
@@ -417,7 +369,6 @@ async def _run_pipeline(
     user_id: int,
     call_context_vars: dict = {},
     audio_config: AudioConfig = None,
-    stasis_connection: Optional[StasisRTPConnection] = None,
 ) -> None:
     """
     Run the pipeline with the given transport and configuration
@@ -558,10 +509,6 @@ async def _run_pipeline(
     # Set the context, audio_config, and audio_buffer after creation
     engine.set_context(context)
     engine.set_audio_config(audio_config)
-
-    # Set Stasis connection for immediate transfers (if available)
-    if stasis_connection:
-        engine.set_stasis_connection(stasis_connection)
 
     assistant_params = LLMAssistantAggregatorParams(
         expect_stripped_words=True,

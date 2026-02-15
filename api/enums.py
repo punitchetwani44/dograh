@@ -22,12 +22,12 @@ class WorkflowRunMode(Enum):
     VONAGE = "vonage"
     VOBIZ = "vobiz"
     CLOUDONIX = "cloudonix"
-    STASIS = "stasis"
     WEBRTC = "webrtc"
     SMALLWEBRTC = "smallwebrtc"
 
     # Historical, not used anymore. Don't
     # use and don't remove
+    STASIS = "stasis"
     VOICE = "VOICE"
     CHAT = "CHAT"
 
