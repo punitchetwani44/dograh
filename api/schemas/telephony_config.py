@@ -89,6 +89,33 @@ class CloudonixConfigurationResponse(BaseModel):
     from_numbers: List[str]
 
 
+class ARIConfigurationRequest(BaseModel):
+    """Request schema for Asterisk ARI configuration."""
+
+    provider: str = Field(default="ari")
+    ari_endpoint: str = Field(
+        ..., description="ARI base URL (e.g., http://asterisk.example.com:8088)"
+    )
+    app_name: str = Field(
+        ..., description="Stasis application name registered in Asterisk"
+    )
+    app_password: str = Field(..., description="ARI user password")
+    from_numbers: List[str] = Field(
+        default_factory=list,
+        description="List of SIP extensions/numbers for outbound calls (optional)",
+    )
+
+
+class ARIConfigurationResponse(BaseModel):
+    """Response schema for ARI configuration with masked sensitive fields."""
+
+    provider: str
+    ari_endpoint: str
+    app_name: str
+    app_password: str  # Masked
+    from_numbers: List[str]
+
+
 class TelephonyConfigurationResponse(BaseModel):
     """Top-level telephony configuration response."""
 
@@ -96,3 +123,4 @@ class TelephonyConfigurationResponse(BaseModel):
     vonage: Optional[VonageConfigurationResponse] = None
     vobiz: Optional[VobizConfigurationResponse] = None
     cloudonix: Optional[CloudonixConfigurationResponse] = None
+    ari: Optional[ARIConfigurationResponse] = None
