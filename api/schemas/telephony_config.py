@@ -100,6 +100,10 @@ class ARIConfigurationRequest(BaseModel):
         ..., description="Stasis application name registered in Asterisk"
     )
     app_password: str = Field(..., description="ARI user password")
+    ws_client_name: str = Field(
+        default="",
+        description="websocket_client.conf connection name for externalMedia (e.g., dograh_staging)",
+    )
     from_numbers: List[str] = Field(
         default_factory=list,
         description="List of SIP extensions/numbers for outbound calls (optional)",
@@ -113,6 +117,7 @@ class ARIConfigurationResponse(BaseModel):
     ari_endpoint: str
     app_name: str
     app_password: str  # Masked
+    ws_client_name: str = ""
     from_numbers: List[str]
 
 

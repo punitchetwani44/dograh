@@ -96,8 +96,9 @@ def create_audio_config(transport_type: str) -> AudioConfig:
         WorkflowRunMode.TWILIO.value,
         WorkflowRunMode.VOBIZ.value,
         WorkflowRunMode.CLOUDONIX.value,
+        WorkflowRunMode.ARI.value,
     ):
-        # Twilio, Cloudonix, and Vobiz use MULAW at 8kHz
+        # Twilio, Cloudonix, Vobiz, and ARI use MULAW at 8kHz
         return AudioConfig(
             transport_in_sample_rate=8000,
             transport_out_sample_rate=8000,

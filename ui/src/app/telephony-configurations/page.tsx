@@ -57,6 +57,7 @@ interface TelephonyConfigForm {
   ari_endpoint?: string;
   app_name?: string;
   app_password?: string;
+  ws_client_name?: string;
   // Common field - multiple phone numbers
   from_numbers: string[];
 }
@@ -153,6 +154,7 @@ export default function ConfigureTelephonyPage() {
             setValue("ari_endpoint", ariConfig.ari_endpoint);
             setValue("app_name", ariConfig.app_name);
             setValue("app_password", ariConfig.app_password);
+            setValue("ws_client_name", ariConfig.ws_client_name);
             setValue("from_numbers", ariConfig.from_numbers?.length > 0 ? ariConfig.from_numbers : [""]);
           }
         }
@@ -254,6 +256,7 @@ export default function ConfigureTelephonyPage() {
           ari_endpoint: data.ari_endpoint!,
           app_name: data.app_name!,
           app_password: data.app_password!,
+          ws_client_name: data.ws_client_name || "",
         } as AriConfigurationRequest;
       }
 
@@ -896,6 +899,18 @@ export default function ConfigureTelephonyPage() {
                             {errors.app_password.message}
                           </p>
                         )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="ws_client_name">WebSocket Client Name</Label>
+                        <Input
+                          id="ws_client_name"
+                          placeholder="dograh_staging"
+                          {...register("ws_client_name")}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Connection name from Asterisk&apos;s websocket_client.conf for external media streaming
+                        </p>
                       </div>
 
                       <div className="space-y-2">

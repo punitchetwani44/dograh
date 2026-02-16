@@ -238,9 +238,14 @@ export const PhoneCallDialog = ({
                             {callLoading ? "Calling..." : "Start Call"}
                         </Button>
                     ) : (
-                        <Button onClick={() => onOpenChange(false)}>
-                            Close
-                        </Button>
+                        <>
+                            <Button variant="outline" onClick={() => { setCallSuccessMsg(null); setCallError(null); }}>
+                                Call Again
+                            </Button>
+                            <Button onClick={() => onOpenChange(false)}>
+                                Close
+                            </Button>
+                        </>
                     )}
                 </div>
             </DialogFooter>

@@ -13,6 +13,7 @@ import aiohttp
 from fastapi import HTTPException
 from loguru import logger
 
+from api.db import db_client
 from api.enums import WorkflowRunMode
 from api.services.telephony.base import (
     CallInitiationResult,
@@ -92,24 +93,20 @@ class ARIProvider(TelephonyProvider):
         params = {
             "endpoint": sip_endpoint,
             "app": self.app_name,
-            "appArgs": f"workflow_run_id={workflow_run_id}" if workflow_run_id else "",
+            "appArgs": ",".join(
+                filter(
+                    None,
+                    [
+                        f"workflow_run_id={workflow_run_id}",
+                        f"workflow_id={kwargs.get('workflow_id', '')}",
+                        f"user_id={kwargs.get('user_id', '')}",
+                    ],
+                )
+            ),
         }
 
         if from_number:
             params["callerId"] = from_number
-
-        # Add variables for tracking
-        variables = {}
-        if workflow_run_id:
-            variables["WORKFLOW_RUN_ID"] = str(workflow_run_id)
-        if kwargs.get("workflow_id"):
-            variables["WORKFLOW_ID"] = str(kwargs["workflow_id"])
-        if kwargs.get("user_id"):
-            variables["USER_ID"] = str(kwargs["user_id"])
-
-        data = {}
-        if variables:
-            data["variables"] = variables
 
         logger.info(
             f"[ARI] Initiating call to {sip_endpoint} "
@@ -120,7 +117,6 @@ class ARIProvider(TelephonyProvider):
             async with session.post(
                 endpoint,
                 params=params,
-                json=data if data else None,
                 auth=self._get_auth(),
             ) as response:
                 response_text = await response.text()
@@ -248,17 +244,25 @@ class ARIProvider(TelephonyProvider):
         workflow_run_id: int,
     ) -> None:
         """
-        ARI WebSocket handling is done by the ari_manager process.
-        This method is a placeholder for the base class requirement.
+        Handle WebSocket connection from ARI externalMedia channel.
 
-        TODO: Implement pipeline integration when ready.
+        Unlike Twilio (which sends "connected" and "start" JSON messages),
+        Asterisk chan_websocket starts streaming audio immediately.
         """
-        logger.warning(
-            f"handle_websocket called for ARI provider - "
-            f"pipeline integration not yet implemented for workflow_run {workflow_run_id}"
+        from api.services.pipecat.run_pipeline import run_pipeline_ari
+
+        # Get channel_id from workflow run context
+        workflow_run = await db_client.get_workflow_run(workflow_run_id, user_id)
+        channel_id = ""
+        if workflow_run and workflow_run.gathered_context:
+            channel_id = workflow_run.gathered_context.get("call_id", "")
+
+        logger.info(
+            f"[ARI] Starting pipeline for workflow_run {workflow_run_id}, channel={channel_id}"
         )
-        await websocket.close(
-            code=4501, reason="ARI pipeline integration not yet implemented"
+
+        await run_pipeline_ari(
+            websocket, channel_id, workflow_id, workflow_run_id, user_id
         )
 
     # ======== INBOUND CALL METHODS ========
@@ -329,6 +333,7 @@ class ARIProvider(TelephonyProvider):
     def generate_validation_error_response(error_type) -> tuple:
         """Generate JSON error response for validation failures."""
         from fastapi import Response
+
         from api.errors.telephony_errors import TELEPHONY_ERROR_MESSAGES, TelephonyError
 
         message = TELEPHONY_ERROR_MESSAGES.get(
@@ -388,9 +393,7 @@ class ARIProvider(TelephonyProvider):
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    endpoint, auth=self._get_auth()
-                ) as response:
+                async with session.post(endpoint, auth=self._get_auth()) as response:
                     if response.status in (200, 204):
                         logger.info(f"[ARI] Channel {channel_id} answered")
                         return True

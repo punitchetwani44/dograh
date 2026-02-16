@@ -8,6 +8,7 @@ from api.enums import OrganizationConfigurationKey
 from api.services.pipecat.audio_config import AudioConfig
 from pipecat.audio.mixers.silence_mixer import SilenceAudioMixer
 from pipecat.audio.mixers.soundfile_mixer import SoundfileMixer
+from pipecat.serializers.asterisk import AsteriskFrameSerializer
 from pipecat.serializers.twilio import TwilioFrameSerializer
 from pipecat.serializers.vobiz import VobizFrameSerializer
 from pipecat.serializers.vonage import VonageFrameSerializer
@@ -122,6 +123,70 @@ async def create_cloudonix_transport(
         stream_sid=stream_sid,
         domain_id=domain_id,
         bearer_token=bearer_token,
+    )
+
+    return FastAPIWebsocketTransport(
+        websocket=websocket_client,
+        params=FastAPIWebsocketParams(
+            audio_in_enabled=True,
+            audio_out_enabled=True,
+            audio_in_sample_rate=audio_config.transport_in_sample_rate,
+            audio_out_sample_rate=audio_config.transport_out_sample_rate,
+            audio_out_mixer=(
+                SoundfileMixer(
+                    sound_files={
+                        "office": APP_ROOT_DIR
+                        / "assets"
+                        / f"office-ambience-{audio_config.transport_out_sample_rate}-mono.wav"
+                    },
+                    default_sound="office",
+                    volume=ambient_noise_config.get("volume", 0.3),
+                )
+                if ambient_noise_config and ambient_noise_config.get("enabled", False)
+                else SilenceAudioMixer()
+            ),
+            serializer=serializer,
+        ),
+    )
+
+
+async def create_ari_transport(
+    websocket_client: WebSocket,
+    channel_id: str,
+    workflow_run_id: int,
+    audio_config: AudioConfig,
+    organization_id: int,
+    vad_config: dict | None = None,
+    ambient_noise_config: dict | None = None,
+):
+    """Create a transport for Asterisk ARI connections"""
+
+    from api.services.telephony.factory import load_telephony_config
+
+    config = await load_telephony_config(organization_id)
+
+    if config.get("provider") != "ari":
+        raise ValueError(f"Expected ARI provider, got {config.get('provider')}")
+
+    ari_endpoint = config.get("ari_endpoint")
+    app_name = config.get("app_name")
+    app_password = config.get("app_password")
+
+    if not ari_endpoint or not app_name or not app_password:
+        raise ValueError(
+            f"Incomplete ARI configuration for organization {organization_id}. "
+            f"Required: ari_endpoint, app_name, app_password"
+        )
+
+    serializer = AsteriskFrameSerializer(
+        channel_id=channel_id,
+        ari_endpoint=ari_endpoint,
+        app_name=app_name,
+        app_password=app_password,
+        params=AsteriskFrameSerializer.InputParams(
+            asterisk_sample_rate=audio_config.transport_in_sample_rate,
+            sample_rate=audio_config.pipeline_sample_rate,
+        ),
     )
 
     return FastAPIWebsocketTransport(

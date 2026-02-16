@@ -139,4 +139,10 @@ async def get_all_telephony_providers() -> List[Type[TelephonyProvider]]:
     Returns:
         List of provider classes that can be used for webhook detection
     """
-    return [ARIProvider, CloudonixProvider, TwilioProvider, VobizProvider, VonageProvider]
+    return [
+        ARIProvider,
+        CloudonixProvider,
+        TwilioProvider,
+        VobizProvider,
+        VonageProvider,
+    ]

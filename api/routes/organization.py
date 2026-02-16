@@ -132,6 +132,7 @@ async def get_telephony_configuration(user: UserModel = Depends(get_user)):
         ari_endpoint = config.value.get("ari_endpoint", "")
         app_name = config.value.get("app_name", "")
         app_password = config.value.get("app_password", "")
+        ws_client_name = config.value.get("ws_client_name", "")
         from_numbers = config.value.get("from_numbers", [])
 
         return TelephonyConfigurationResponse(
@@ -140,6 +141,7 @@ async def get_telephony_configuration(user: UserModel = Depends(get_user)):
                 ari_endpoint=ari_endpoint,
                 app_name=app_name,
                 app_password=mask_key(app_password) if app_password else "",
+                ws_client_name=ws_client_name,
                 from_numbers=from_numbers,
             ),
         )
@@ -205,6 +207,7 @@ async def save_telephony_configuration(
             "ari_endpoint": request.ari_endpoint,
             "app_name": request.app_name,
             "app_password": request.app_password,
+            "ws_client_name": request.ws_client_name,
             "from_numbers": request.from_numbers,
         }
     else:

@@ -37,6 +37,10 @@ export type AriConfigurationRequest = {
      */
     app_password: string;
     /**
+     * websocket_client.conf connection name for externalMedia (e.g., dograh_staging)
+     */
+    ws_client_name?: string;
+    /**
      * List of SIP extensions/numbers for outbound calls (optional)
      */
     from_numbers?: Array<string>;
@@ -50,6 +54,7 @@ export type AriConfigurationResponse = {
     ari_endpoint: string;
     app_name: string;
     app_password: string;
+    ws_client_name?: string;
     from_numbers: Array<string>;
 };
 

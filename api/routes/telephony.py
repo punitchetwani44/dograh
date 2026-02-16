@@ -523,13 +523,47 @@ async def handle_ncco_webhook(
     return json.loads(response_content)
 
 
+@router.websocket("/ws/ari")
+async def websocket_ari_endpoint(websocket: WebSocket):
+    """WebSocket endpoint for ARI chan_websocket external media.
+
+    Asterisk connects here via chan_websocket. Routing params are passed as
+    query params (appended by the v() dial string option in externalMedia).
+    """
+    workflow_id = websocket.query_params.get("workflow_id")
+    user_id = websocket.query_params.get("user_id")
+    workflow_run_id = websocket.query_params.get("workflow_run_id")
+
+    if not workflow_id or not user_id or not workflow_run_id:
+        logger.error(
+            f"ARI WebSocket missing query params: "
+            f"workflow_id={workflow_id}, user_id={user_id}, workflow_run_id={workflow_run_id}"
+        )
+        await websocket.close(code=4400, reason="Missing required query params")
+        return
+
+    # Accept with "media" subprotocol — chan_websocket sends
+    # Sec-WebSocket-Protocol: media and requires it echoed back.
+    await websocket.accept(subprotocol="media")
+
+    await _handle_telephony_websocket(
+        websocket, int(workflow_id), int(user_id), int(workflow_run_id)
+    )
+
+
 @router.websocket("/ws/{workflow_id}/{user_id}/{workflow_run_id}")
 async def websocket_endpoint(
     websocket: WebSocket, workflow_id: int, user_id: int, workflow_run_id: int
 ):
     """WebSocket endpoint for real-time call handling - routes to provider-specific handlers."""
     await websocket.accept()
+    await _handle_telephony_websocket(websocket, workflow_id, user_id, workflow_run_id)
 
+
+async def _handle_telephony_websocket(
+    websocket: WebSocket, workflow_id: int, user_id: int, workflow_run_id: int
+):
+    """Shared WebSocket handler logic (connection already accepted)."""
     try:
         # Set the run context
         set_current_run_id(workflow_run_id)
