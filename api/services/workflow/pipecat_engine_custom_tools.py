@@ -507,7 +507,6 @@ class CustomToolManager:
         """Handle different transfer call outcomes and take appropriate action."""
         action = result.get("action", "")
         status = result.get("status", "")
-        message = result.get("message", "")
 
         logger.info(f"Handling transfer result: action={action}, status={status}")
 
@@ -541,40 +540,13 @@ class CustomToolManager:
             reason = result.get("reason", "unknown")
             logger.info(f"Transfer failed ({reason}), informing user")
 
-            from pipecat.frames.frames import LLMMessagesAppendFrame
-
-            # Create system message with clear instructions for transfer failure
-            failure_instruction = {
-                "role": "system",
-                "content": f"IMPORTANT: The transfer call has FAILED. Reason: {reason}. You must inform the customer about this failure using this message: '{message}' Then immediately say goodbye and end the conversation. Do NOT ask if they need anything else or continue the conversation. Do NOT continue with transfer language.",
-            }
-            logger.info(f"Transfer failed ({reason}), informing user")
-
-            # Push the system message to LLM context
-            await self._engine.task.queue_frame(
-                LLMMessagesAppendFrame([failure_instruction], run_llm=True)
-            )
-
-            # Send function call result - LLM will be triggered by system message
-            response_properties = FunctionCallResultProperties(run_llm=False)
             await function_call_params.result_callback(
                 {
                     "status": "transfer_failed",
                     "reason": reason,
                     "message": "Transfer failed",
-                },
-                properties=response_properties,
+                }
             )
-
-            # Schedule call end after 5 seconds to allow LLM to speak
-            async def delayed_end_call():
-                await asyncio.sleep(5)
-                await self._engine.end_call_with_reason(
-                    EndTaskReason.TRANSFER_CALL_FAILED.value, abort_immediately=False
-                )
-
-            # Create task to end call asynchronously
-            asyncio.create_task(delayed_end_call())
         else:
             # Unknown action, treat as generic success
             logger.warning(f"Unknown transfer action: {action}, treating as success")
