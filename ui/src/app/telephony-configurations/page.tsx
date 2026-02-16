@@ -58,6 +58,7 @@ interface TelephonyConfigForm {
   app_name?: string;
   app_password?: string;
   ws_client_name?: string;
+  inbound_workflow_id?: number;
   // Common field - multiple phone numbers
   from_numbers: string[];
 }
@@ -155,6 +156,10 @@ export default function ConfigureTelephonyPage() {
             setValue("app_name", ariConfig.app_name);
             setValue("app_password", ariConfig.app_password);
             setValue("ws_client_name", ariConfig.ws_client_name);
+            setValue(
+              "inbound_workflow_id",
+              typeof ariConfig.inbound_workflow_id === "number" ? ariConfig.inbound_workflow_id : undefined
+            );
             setValue("from_numbers", ariConfig.from_numbers?.length > 0 ? ariConfig.from_numbers : [""]);
           }
         }
@@ -257,6 +262,7 @@ export default function ConfigureTelephonyPage() {
           app_name: data.app_name!,
           app_password: data.app_password!,
           ws_client_name: data.ws_client_name || "",
+          inbound_workflow_id: data.inbound_workflow_id || undefined,
         } as AriConfigurationRequest;
       }
 
@@ -910,6 +916,19 @@ export default function ConfigureTelephonyPage() {
                         />
                         <p className="text-xs text-muted-foreground">
                           Connection name from Asterisk&apos;s websocket_client.conf for external media streaming
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="inbound_workflow_id">Inbound Workflow ID (Optional)</Label>
+                        <Input
+                          id="inbound_workflow_id"
+                          type="number"
+                          placeholder="e.g. 42"
+                          {...register("inbound_workflow_id", { valueAsNumber: true })}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Workflow to activate for inbound calls received via ARI
                         </p>
                       </div>
 

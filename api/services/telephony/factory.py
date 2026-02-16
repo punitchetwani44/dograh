@@ -82,6 +82,7 @@ async def load_telephony_config(organization_id: int) -> Dict[str, Any]:
                 "ari_endpoint": config.value.get("ari_endpoint"),
                 "app_name": config.value.get("app_name"),
                 "app_password": config.value.get("app_password"),
+                "inbound_workflow_id": config.value.get("inbound_workflow_id"),
                 "from_numbers": config.value.get("from_numbers", []),
             }
         else:

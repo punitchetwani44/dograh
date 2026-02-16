@@ -41,6 +41,10 @@ export type AriConfigurationRequest = {
      */
     ws_client_name?: string;
     /**
+     * Workflow ID for inbound calls
+     */
+    inbound_workflow_id?: number | null;
+    /**
      * List of SIP extensions/numbers for outbound calls (optional)
      */
     from_numbers?: Array<string>;
@@ -55,6 +59,7 @@ export type AriConfigurationResponse = {
     app_name: string;
     app_password: string;
     ws_client_name?: string;
+    inbound_workflow_id?: number | null;
     from_numbers: Array<string>;
 };
 

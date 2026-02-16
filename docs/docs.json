@@ -90,6 +90,7 @@
               "integrations/telephony/vonage",
               "integrations/telephony/cloudonix",
               "integrations/telephony/vobiz",
+              "integrations/telephony/asterisk-ari",
               "integrations/telephony/webhooks",
               "integrations/telephony/custom"
             ]
