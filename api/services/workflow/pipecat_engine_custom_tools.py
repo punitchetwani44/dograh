@@ -16,7 +16,7 @@ from loguru import logger
 
 from api.constants import APP_ROOT_DIR
 from api.db import db_client
-from api.enums import ToolCategory
+from api.enums import ToolCategory, WorkflowRunMode
 from api.services.telephony.call_transfer_manager import get_call_transfer_manager
 from api.services.telephony.factory import get_telephony_provider
 from api.services.telephony.transfer_event_protocol import TransferContext
@@ -291,6 +291,23 @@ class CustomToolManager:
                     "timeout", 30
                 )  # Default 30 seconds if not configured
 
+                # Check if this is a WebRTC call - transfers are not supported
+                workflow_run = await db_client.get_workflow_run_by_id(
+                    self._engine._workflow_run_id
+                )
+                if workflow_run.mode in [WorkflowRunMode.WEBRTC.value, WorkflowRunMode.SMALLWEBRTC.value]:
+                    webrtc_error_result = {
+                        "status": "failed",
+                        "message": "I'm sorry, but call transfers are not available for web calls. Please try a telephony call.",
+                        "action": "transfer_failed",
+                        "reason": "webrtc_not_supported",
+                        "end_call": True,
+                    }
+                    await self._handle_transfer_result(
+                        webrtc_error_result, function_call_params, properties
+                    )
+                    return
+
                 # Validate destination phone number
                 if not destination or not destination.strip():
                     validation_error_result = {
@@ -354,10 +371,6 @@ class CustomToolManager:
                     )
                     return
 
-                # Get original callSID from gathered_context
-                workflow_run = await db_client.get_workflow_run_by_id(
-                    self._engine._workflow_run_id
-                )
                 original_call_sid = workflow_run.gathered_context.get("call_id")
 
                 # Generate a unique transfer ID for tracking this transfer
