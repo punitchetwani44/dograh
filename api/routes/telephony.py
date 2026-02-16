@@ -502,26 +502,6 @@ async def handle_twiml_webhook(
     return HTMLResponse(content=response_content, media_type="application/xml")
 
 
-@router.post("/transfer-twiml/{conference_name}", include_in_schema=False)
-async def transfer_twiml(conference_name: str):
-    """
-    TwiML endpoint that puts the caller into a conference.
-    Called by Twilio when we redirect the call after closing the WebSocket stream.
-    """
-    logger.info(f"[TRANSFER-TWIML] Generating conference TwiML for: {conference_name}")
-
-    twiml_content = f"""<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-    <Say>Connecting you now.</Say>
-    <Dial>
-        <Conference endConferenceOnExit="true" startConferenceOnEnter="true">{conference_name}</Conference>
-    </Dial>
-</Response>"""
-
-    logger.info(f"[TRANSFER-TWIML] Generated TwiML: {twiml_content}")
-    return HTMLResponse(content=twiml_content, media_type="application/xml")
-
-
 @router.get("/ncco", include_in_schema=False)
 async def handle_ncco_webhook(
     workflow_id: int,
