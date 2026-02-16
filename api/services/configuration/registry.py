@@ -278,7 +278,48 @@ class DograhTTSService(BaseTTSConfiguration):
 
 
 SARVAM_TTS_MODELS = ["bulbul:v2", "bulbul:v3"]
-SARVAM_VOICES = ["anushka", "manisha", "vidya", "arya", "abhilash", "karun", "hitesh"]
+SARVAM_V2_VOICES = ["anushka", "manisha", "vidya", "arya", "abhilash", "karun", "hitesh"]
+SARVAM_V3_VOICES = [
+    "shubh",
+    "aditya",
+    "ritu",
+    "priya",
+    "neha",
+    "rahul",
+    "pooja",
+    "rohan",
+    "simran",
+    "kavya",
+    "amit",
+    "dev",
+    "ishita",
+    "shreya",
+    "ratan",
+    "varun",
+    "manan",
+    "sumit",
+    "roopa",
+    "kabir",
+    "aayan",
+    "ashutosh",
+    "advait",
+    "amelia",
+    "sophia",
+    "anand",
+    "tanya",
+    "tarun",
+    "sunny",
+    "mani",
+    "gokul",
+    "vijay",
+    "shruti",
+    "suhani",
+    "mohit",
+    "kavitha",
+    "rehan",
+    "soham",
+    "rupali",
+]
 SARVAM_LANGUAGES = [
     "bn-IN",
     "en-IN",
@@ -301,7 +342,16 @@ class SarvamTTSConfiguration(BaseTTSConfiguration):
     model: str = Field(
         default="bulbul:v2", json_schema_extra={"examples": SARVAM_TTS_MODELS}
     )
-    voice: str = Field(default="anushka", json_schema_extra={"examples": SARVAM_VOICES})
+    voice: str = Field(
+        default="anushka",
+        json_schema_extra={
+            "examples": SARVAM_V2_VOICES,
+            "model_options": {
+                "bulbul:v2": SARVAM_V2_VOICES,
+                "bulbul:v3": SARVAM_V3_VOICES,
+            },
+        },
+    )
     language: str = Field(
         default="hi-IN", json_schema_extra={"examples": SARVAM_LANGUAGES}
     )
@@ -322,39 +372,89 @@ TTSConfig = Annotated[
 ###################################################### STT ########################################################################
 
 
-DEEPGRAM_STT_MODELS = ["nova-2", "nova-3-general", "flux-general-en"]
+DEEPGRAM_STT_MODELS = ["nova-3-general", "flux-general-en"]
 DEEPGRAM_LANGUAGES = [
     "multi",
+    "ar",
+    "ar-AE",
+    "ar-SA",
+    "ar-QA",
+    "ar-KW",
+    "ar-SY",
+    "ar-LB",
+    "ar-PS",
+    "ar-JO",
+    "ar-EG",
+    "ar-SD",
+    "ar-TD",
+    "ar-MA",
+    "ar-DZ",
+    "ar-TN",
+    "ar-IQ",
+    "ar-IR",
+    "be",
+    "bn",
+    "bs",
+    "bg",
+    "ca",
+    "cs",
+    "da",
+    "da-DK",
+    "de",
+    "de-CH",
+    "el",
     "en",
     "en-US",
-    "en-GB",
     "en-AU",
+    "en-GB",
     "en-IN",
+    "en-NZ",
     "es",
     "es-419",
+    "et",
+    "fa",
+    "fi",
     "fr",
     "fr-CA",
-    "de",
+    "he",
+    "hi",
+    "hr",
+    "hu",
+    "id",
     "it",
+    "ja",
+    "kn",
+    "ko",
+    "ko-KR",
+    "lt",
+    "lv",
+    "mk",
+    "mr",
+    "ms",
+    "nl",
+    "nl-BE",
+    "no",
+    "pl",
     "pt",
     "pt-BR",
-    "nl",
-    "hi",
-    "ja",
-    "ko",
-    "zh-CN",
-    "zh-TW",
+    "pt-PT",
+    "ro",
     "ru",
-    "pl",
+    "sk",
+    "sl",
+    "sr",
+    "sv",
+    "sv-SE",
+    "ta",
+    "te",
+    "th",
+    "tl",
     "tr",
     "uk",
+    "ur",
     "vi",
-    "sv",
-    "da",
-    "no",
-    "fi",
-    "id",
-    "th",
+    "zh-CN",
+    "zh-TW",
 ]
 
 
@@ -365,7 +465,14 @@ class DeepgramSTTConfiguration(BaseSTTConfiguration):
         default="nova-3-general", json_schema_extra={"examples": DEEPGRAM_STT_MODELS}
     )
     language: str = Field(
-        default="multi", json_schema_extra={"examples": DEEPGRAM_LANGUAGES}
+        default="multi",
+        json_schema_extra={
+            "examples": DEEPGRAM_LANGUAGES,
+            "model_options": {
+                "nova-3-general": DEEPGRAM_LANGUAGES,
+                "flux-general-en": ["en"],
+            },
+        },
     )
     api_key: str
 
@@ -390,39 +497,7 @@ class OpenAISTTConfiguration(BaseSTTConfiguration):
 
 # Dograh STT Service
 DOGRAH_STT_MODELS = ["default"]
-DOGRAH_STT_LANGUAGES = [
-    "multi",
-    "en",
-    "en-US",
-    "en-GB",
-    "en-AU",
-    "en-IN",
-    "es",
-    "es-419",
-    "fr",
-    "fr-CA",
-    "de",
-    "it",
-    "pt",
-    "pt-BR",
-    "nl",
-    "hi",
-    "ja",
-    "ko",
-    "zh-CN",
-    "zh-TW",
-    "ru",
-    "pl",
-    "tr",
-    "uk",
-    "vi",
-    "sv",
-    "da",
-    "no",
-    "fi",
-    "id",
-    "th",
-]
+DOGRAH_STT_LANGUAGES = DEEPGRAM_LANGUAGES
 
 
 @register_stt

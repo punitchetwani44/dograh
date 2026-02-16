@@ -21,6 +21,7 @@ interface SchemaProperty {
     default?: string | number | boolean;
     enum?: string[];
     examples?: string[];
+    model_options?: Record<string, string[]>;
     $ref?: string;
     description?: string;
     format?: string;
@@ -46,38 +47,89 @@ const TAB_CONFIG: { key: ServiceSegment; label: string }[] = [
 
 // Display names for language codes (Deepgram + Sarvam)
 const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
-    // Deepgram languages
     "multi": "Multilingual (Auto-detect)",
+    // Arabic
+    "ar": "Arabic",
+    "ar-AE": "Arabic (UAE)",
+    "ar-SA": "Arabic (Saudi Arabia)",
+    "ar-QA": "Arabic (Qatar)",
+    "ar-KW": "Arabic (Kuwait)",
+    "ar-SY": "Arabic (Syria)",
+    "ar-LB": "Arabic (Lebanon)",
+    "ar-PS": "Arabic (Palestine)",
+    "ar-JO": "Arabic (Jordan)",
+    "ar-EG": "Arabic (Egypt)",
+    "ar-SD": "Arabic (Sudan)",
+    "ar-TD": "Arabic (Chad)",
+    "ar-MA": "Arabic (Morocco)",
+    "ar-DZ": "Arabic (Algeria)",
+    "ar-TN": "Arabic (Tunisia)",
+    "ar-IQ": "Arabic (Iraq)",
+    "ar-IR": "Arabic (Iran)",
+    // Other languages
+    "be": "Belarusian",
+    "bn": "Bengali",
+    "bs": "Bosnian",
+    "bg": "Bulgarian",
+    "ca": "Catalan",
+    "cs": "Czech",
+    "da": "Danish",
+    "da-DK": "Danish (Denmark)",
+    "de": "German",
+    "de-CH": "German (Switzerland)",
+    "el": "Greek",
     "en": "English",
     "en-US": "English (US)",
-    "en-GB": "English (UK)",
     "en-AU": "English (Australia)",
+    "en-GB": "English (UK)",
     "en-IN": "English (India)",
+    "en-NZ": "English (New Zealand)",
     "es": "Spanish",
     "es-419": "Spanish (Latin America)",
+    "et": "Estonian",
+    "fa": "Persian",
+    "fi": "Finnish",
     "fr": "French",
     "fr-CA": "French (Canada)",
-    "de": "German",
+    "he": "Hebrew",
+    "hi": "Hindi",
+    "hr": "Croatian",
+    "hu": "Hungarian",
+    "id": "Indonesian",
     "it": "Italian",
+    "ja": "Japanese",
+    "kn": "Kannada",
+    "ko": "Korean",
+    "ko-KR": "Korean (South Korea)",
+    "lt": "Lithuanian",
+    "lv": "Latvian",
+    "mk": "Macedonian",
+    "mr": "Marathi",
+    "ms": "Malay",
+    "nl": "Dutch",
+    "nl-BE": "Flemish",
+    "no": "Norwegian",
+    "pl": "Polish",
     "pt": "Portuguese",
     "pt-BR": "Portuguese (Brazil)",
-    "nl": "Dutch",
-    "hi": "Hindi",
-    "ja": "Japanese",
-    "ko": "Korean",
-    "zh-CN": "Chinese (Simplified)",
-    "zh-TW": "Chinese (Traditional)",
+    "pt-PT": "Portuguese (Portugal)",
+    "ro": "Romanian",
     "ru": "Russian",
-    "pl": "Polish",
+    "sk": "Slovak",
+    "sl": "Slovenian",
+    "sr": "Serbian",
+    "sv": "Swedish",
+    "sv-SE": "Swedish (Sweden)",
+    "ta": "Tamil",
+    "te": "Telugu",
+    "th": "Thai",
+    "tl": "Tagalog",
     "tr": "Turkish",
     "uk": "Ukrainian",
+    "ur": "Urdu",
     "vi": "Vietnamese",
-    "sv": "Swedish",
-    "da": "Danish",
-    "no": "Norwegian",
-    "fi": "Finnish",
-    "id": "Indonesian",
-    "th": "Thai",
+    "zh-CN": "Chinese (Simplified)",
+    "zh-TW": "Chinese (Traditional)",
     // Sarvam Indian languages
     "bn-IN": "Bengali",
     "gu-IN": "Gujarati",
@@ -212,6 +264,34 @@ export default function ServiceConfiguration() {
         }
     }, [schemas, serviceProviders.llm, userConfig?.llm?.model, hasCheckedManualMode]);
 
+    // Reset voice when TTS model changes if the provider has model-dependent voice options
+    const ttsModel = watch("tts_model");
+    useEffect(() => {
+        const voiceSchema = schemas?.tts?.[serviceProviders.tts]?.properties?.voice;
+        const modelOptions = voiceSchema?.model_options;
+        if (!modelOptions || !ttsModel) return;
+
+        const validVoices = modelOptions[ttsModel as string];
+        const currentVoice = getValues("tts_voice") as string;
+        if (validVoices && currentVoice && !validVoices.includes(currentVoice)) {
+            setValue("tts_voice", validVoices[0], { shouldDirty: true });
+        }
+    }, [ttsModel, serviceProviders.tts, setValue, getValues, schemas]);
+
+    // Reset language when STT model changes if the provider has model-dependent language options
+    const sttModel = watch("stt_model");
+    useEffect(() => {
+        const languageSchema = schemas?.stt?.[serviceProviders.stt]?.properties?.language;
+        const modelOptions = languageSchema?.model_options;
+        if (!modelOptions || !sttModel) return;
+
+        const validLanguages = modelOptions[sttModel as string];
+        const currentLanguage = getValues("stt_language") as string;
+        if (validLanguages && currentLanguage && !validLanguages.includes(currentLanguage)) {
+            setValue("stt_language", validLanguages[0], { shouldDirty: true });
+        }
+    }, [sttModel, serviceProviders.stt, setValue, getValues, schemas]);
+
     const handleProviderChange = (service: ServiceSegment, providerName: string) => {
         if (!providerName) {
             return;
@@ -324,15 +404,6 @@ export default function ServiceConfiguration() {
         const fields = Object.keys(providerSchema.properties).filter(
             field => field !== "provider" && field !== "api_key"
         );
-
-        // For Deepgram STT, hide language field when flux-general-en model is selected
-        // Flux model is English-only and doesn't support language selection
-        if (service === "stt" && currentProvider === "deepgram") {
-            const currentModel = watch("stt_model") as string;
-            if (currentModel === "flux-general-en") {
-                return fields.filter(field => field !== "language");
-            }
-        }
 
         return fields;
     };
@@ -516,7 +587,16 @@ export default function ServiceConfiguration() {
         }
 
         // Handle fields with enum or examples (dropdown options)
-        const dropdownOptions = actualSchema?.enum || actualSchema?.examples;
+        let dropdownOptions = actualSchema?.enum || actualSchema?.examples;
+
+        // Use model-dependent options when available (e.g., Sarvam voices per model)
+        if (actualSchema?.model_options) {
+            const modelValue = watch(`${service}_model`) as string;
+            if (modelValue && actualSchema.model_options[modelValue]) {
+                dropdownOptions = actualSchema.model_options[modelValue];
+            }
+        }
+
         if (dropdownOptions && dropdownOptions.length > 0) {
             // Use friendly display names for language and voice fields
             const getDisplayName = (value: string) => {
@@ -524,7 +604,7 @@ export default function ServiceConfiguration() {
                     return LANGUAGE_DISPLAY_NAMES[value] || value;
                 }
                 if (field === "voice") {
-                    return VOICE_DISPLAY_NAMES[value] || value;
+                    return VOICE_DISPLAY_NAMES[value] || value.charAt(0).toUpperCase() + value.slice(1);
                 }
                 return value;
             };
