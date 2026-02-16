@@ -95,9 +95,7 @@ class ARIConnection:
     async def _mark_ext_channel(self, channel_id: str):
         """Mark a channel as an external media channel we created."""
         r = await self._get_redis()
-        await r.set(
-            f"{_EXT_CHANNEL_KEY_PREFIX}{channel_id}", "1", ex=_CHANNEL_KEY_TTL
-        )
+        await r.set(f"{_EXT_CHANNEL_KEY_PREFIX}{channel_id}", "1", ex=_CHANNEL_KEY_TTL)
 
     async def _is_ext_channel(self, channel_id: str) -> bool:
         """Check if a channel is an external media channel we created."""
@@ -239,7 +237,6 @@ class ARIConnection:
                     f"[ARI org={self.organization_id}] StasisStart for our "
                     f"externalMedia channel {channel_id}, ignoring"
                 )
-                await self._delete_ext_channel(channel_id)
                 return
 
             app_args = event.get("args", [])
@@ -601,6 +598,9 @@ class ARIConnection:
             ]
             if keys_to_delete:
                 await self._delete_channel_run(*keys_to_delete)
+
+            # Clean up the Redis marker for external channel
+            await self._delete_ext_channel(ext_channel_id)
 
             logger.info(
                 f"[ARI org={self.organization_id}] StasisEnd full teardown for "
