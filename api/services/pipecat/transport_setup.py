@@ -146,6 +146,7 @@ async def create_cloudonix_transport(
                 else SilenceAudioMixer()
             ),
             serializer=serializer,
+            audio_out_10ms_chunks=2,
         ),
     )
 
