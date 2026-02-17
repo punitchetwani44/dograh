@@ -8,6 +8,8 @@ from api.db import db_client
 from api.db.models import UserModel
 from api.enums import OrganizationConfigurationKey
 from api.schemas.telephony_config import (
+    ARIConfigurationRequest,
+    ARIConfigurationResponse,
     CloudonixConfigurationRequest,
     CloudonixConfigurationResponse,
     TelephonyConfigurationResponse,
@@ -29,6 +31,7 @@ PROVIDER_MASKED_FIELDS = {
     "vonage": ["private_key", "api_key", "api_secret"],
     "vobiz": ["auth_id", "auth_token"],
     "cloudonix": ["bearer_token"],
+    "ari": ["app_password"],
 }
 
 
@@ -125,6 +128,26 @@ async def get_telephony_configuration(user: UserModel = Depends(get_user)):
             ),
             vobiz=None,
         )
+    elif stored_provider == "ari":
+        ari_endpoint = config.value.get("ari_endpoint", "")
+        app_name = config.value.get("app_name", "")
+        app_password = config.value.get("app_password", "")
+        ws_client_name = config.value.get("ws_client_name", "")
+        from_numbers = config.value.get("from_numbers", [])
+
+        inbound_workflow_id = config.value.get("inbound_workflow_id")
+
+        return TelephonyConfigurationResponse(
+            ari=ARIConfigurationResponse(
+                provider="ari",
+                ari_endpoint=ari_endpoint,
+                app_name=app_name,
+                app_password=mask_key(app_password) if app_password else "",
+                ws_client_name=ws_client_name,
+                inbound_workflow_id=inbound_workflow_id,
+                from_numbers=from_numbers,
+            ),
+        )
     else:
         return TelephonyConfigurationResponse()
 
@@ -136,6 +159,7 @@ async def save_telephony_configuration(
         VonageConfigurationRequest,
         VobizConfigurationRequest,
         CloudonixConfigurationRequest,
+        ARIConfigurationRequest,
     ],
     user: UserModel = Depends(get_user),
 ):
@@ -178,6 +202,16 @@ async def save_telephony_configuration(
             "provider": "cloudonix",
             "bearer_token": request.bearer_token,
             "domain_id": request.domain_id,
+            "from_numbers": request.from_numbers,
+        }
+    elif request.provider == "ari":
+        config_value = {
+            "provider": "ari",
+            "ari_endpoint": request.ari_endpoint,
+            "app_name": request.app_name,
+            "app_password": request.app_password,
+            "ws_client_name": request.ws_client_name,
+            "inbound_workflow_id": request.inbound_workflow_id,
             "from_numbers": request.from_numbers,
         }
     else:

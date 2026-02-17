@@ -19,6 +19,50 @@ export type ApiKeyStatusResponse = {
     status: Array<ApiKeyStatus>;
 };
 
+/**
+ * Request schema for Asterisk ARI configuration.
+ */
+export type AriConfigurationRequest = {
+    provider?: string;
+    /**
+     * ARI base URL (e.g., http://asterisk.example.com:8088)
+     */
+    ari_endpoint: string;
+    /**
+     * Stasis application name registered in Asterisk
+     */
+    app_name: string;
+    /**
+     * ARI user password
+     */
+    app_password: string;
+    /**
+     * websocket_client.conf connection name for externalMedia (e.g., dograh_staging)
+     */
+    ws_client_name?: string;
+    /**
+     * Workflow ID for inbound calls
+     */
+    inbound_workflow_id?: number | null;
+    /**
+     * List of SIP extensions/numbers for outbound calls (optional)
+     */
+    from_numbers?: Array<string>;
+};
+
+/**
+ * Response schema for ARI configuration with masked sensitive fields.
+ */
+export type AriConfigurationResponse = {
+    provider: string;
+    ari_endpoint: string;
+    app_name: string;
+    app_password: string;
+    ws_client_name?: string;
+    inbound_workflow_id?: number | null;
+    from_numbers: Array<string>;
+};
+
 export type AccessTokenResponse = {
     access_token: string | null;
     refresh_token: string | null;
@@ -795,6 +839,7 @@ export type TelephonyConfigurationResponse = {
     vonage?: VonageConfigurationResponse | null;
     vobiz?: VobizConfigurationResponse | null;
     cloudonix?: CloudonixConfigurationResponse | null;
+    ari?: AriConfigurationResponse | null;
 };
 
 export type TestSessionResponse = {
@@ -3461,7 +3506,7 @@ export type GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetRespons
 export type GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetResponse = GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetResponses[keyof GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetResponses];
 
 export type SaveTelephonyConfigurationApiV1OrganizationsTelephonyConfigPostData = {
-    body: TwilioConfigurationRequest | VonageConfigurationRequest | VobizConfigurationRequest | CloudonixConfigurationRequest;
+    body: TwilioConfigurationRequest | VonageConfigurationRequest | VobizConfigurationRequest | CloudonixConfigurationRequest | AriConfigurationRequest;
     headers?: {
         authorization?: string | null;
         'X-API-Key'?: string | null;

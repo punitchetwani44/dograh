@@ -18,16 +18,17 @@ class CallType(Enum):
 
 
 class WorkflowRunMode(Enum):
+    ARI = "ari"
     TWILIO = "twilio"
     VONAGE = "vonage"
     VOBIZ = "vobiz"
     CLOUDONIX = "cloudonix"
-    STASIS = "stasis"
     WEBRTC = "webrtc"
     SMALLWEBRTC = "smallwebrtc"
 
     # Historical, not used anymore. Don't
     # use and don't remove
+    STASIS = "stasis"
     VOICE = "VOICE"
     CHAT = "CHAT"
 

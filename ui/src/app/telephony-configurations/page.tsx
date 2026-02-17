@@ -8,6 +8,8 @@ import { toast } from "sonner";
 
 import { getTelephonyConfigurationApiV1OrganizationsTelephonyConfigGet, saveTelephonyConfigurationApiV1OrganizationsTelephonyConfigPost } from "@/client/sdk.gen";
 import type {
+  AriConfigurationRequest,
+  AriConfigurationResponse,
   CloudonixConfigurationRequest,
   CloudonixConfigurationResponse,
   TelephonyConfigurationResponse,
@@ -51,6 +53,12 @@ interface TelephonyConfigForm {
   // Cloudonix fields
   bearer_token?: string;
   domain_id?: string;
+  // ARI fields
+  ari_endpoint?: string;
+  app_name?: string;
+  app_password?: string;
+  ws_client_name?: string;
+  inbound_workflow_id?: number;
   // Common field - multiple phone numbers
   from_numbers: string[];
 }
@@ -140,6 +148,19 @@ export default function ConfigureTelephonyPage() {
             setValue("bearer_token", cloudonixConfig.bearer_token);
             setValue("domain_id", cloudonixConfig.domain_id);
             setValue("from_numbers", cloudonixConfig.from_numbers?.length > 0 ? cloudonixConfig.from_numbers : [""]);
+          } else if ((response.data as TelephonyConfigurationResponse)?.ari) {
+            const ariConfig = (response.data as TelephonyConfigurationResponse).ari as AriConfigurationResponse;
+            setHasExistingConfig(true);
+            setValue("provider", "ari");
+            setValue("ari_endpoint", ariConfig.ari_endpoint);
+            setValue("app_name", ariConfig.app_name);
+            setValue("app_password", ariConfig.app_password);
+            setValue("ws_client_name", ariConfig.ws_client_name);
+            setValue(
+              "inbound_workflow_id",
+              typeof ariConfig.inbound_workflow_id === "number" ? ariConfig.inbound_workflow_id : undefined
+            );
+            setValue("from_numbers", ariConfig.from_numbers?.length > 0 ? ariConfig.from_numbers : [""]);
           }
         }
       } catch (error) {
@@ -161,12 +182,13 @@ export default function ConfigureTelephonyPage() {
         | TwilioConfigurationRequest
         | VonageConfigurationRequest
         | VobizConfigurationRequest
-        | CloudonixConfigurationRequest;
+        | CloudonixConfigurationRequest
+        | AriConfigurationRequest;
 
       const filteredNumbers = data.from_numbers.filter(n => n.trim() !== "");
 
-      // Validate phone numbers are provided (except for Cloudonix where optional)
-      if (data.provider !== "cloudonix" && filteredNumbers.length === 0) {
+      // Validate phone numbers are provided (except for Cloudonix/ARI where optional)
+      if (data.provider !== "cloudonix" && data.provider !== "ari" && filteredNumbers.length === 0) {
         toast.error("At least one phone number is required");
         setIsLoading(false);
         return;
@@ -185,6 +207,10 @@ export default function ConfigureTelephonyPage() {
       } else if (data.provider === "cloudonix") {
         pattern = cloudonixPattern;
         formatMessage = "(e.g., +1234567890)";
+      } else if (data.provider === "ari") {
+        // ARI uses SIP extensions - skip phone number validation
+        pattern = /^.+$/;
+        formatMessage = "(SIP extension or number)";
       } else {
         pattern = vonageVobizPattern;
         formatMessage = "without + prefix (e.g., 14155551234)";
@@ -220,14 +246,24 @@ export default function ConfigureTelephonyPage() {
           auth_id: data.auth_id,
           auth_token: data.vobiz_auth_token,
         } as VobizConfigurationRequest;
-      } else {
-        // Cloudonix
+      } else if (data.provider === "cloudonix") {
         requestBody = {
           provider: data.provider,
           from_numbers: filteredNumbers,
           bearer_token: data.bearer_token!,
           domain_id: data.domain_id!,
         } as CloudonixConfigurationRequest;
+      } else {
+        // ARI
+        requestBody = {
+          provider: data.provider,
+          from_numbers: filteredNumbers,
+          ari_endpoint: data.ari_endpoint!,
+          app_name: data.app_name!,
+          app_password: data.app_password!,
+          ws_client_name: data.ws_client_name || "",
+          inbound_workflow_id: data.inbound_workflow_id || undefined,
+        } as AriConfigurationRequest;
       }
 
       const response = await saveTelephonyConfigurationApiV1OrganizationsTelephonyConfigPost({
@@ -276,11 +312,18 @@ export default function ConfigureTelephonyPage() {
                     ? "Vonage"
                     : selectedProvider === "vobiz"
                     ? "Vobiz"
+                    : selectedProvider === "ari"
+                    ? "Asterisk ARI"
                     : "Cloudonix"}{" "}
                   Setup Guide
                 </CardTitle>
                 <CardDescription>
-                  {selectedProvider === "cloudonix" ? (
+                  {selectedProvider === "ari" ? (
+                    <>
+                      Connect Dograh to your Asterisk PBX using the Asterisk REST Interface (ARI).
+                      ARI provides a WebSocket-based event model for controlling calls via Stasis applications.
+                    </>
+                  ) : selectedProvider === "cloudonix" ? (
                     <>
                       Cloudonix is an AI Connectivity platform, enabling you to connect Dograh to any SIP product or SIP Telephony Provider.<br/><br/>
                       <iframe
@@ -325,7 +368,27 @@ export default function ConfigureTelephonyPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {selectedProvider === "twilio" || selectedProvider === "vonage" ? (
+                {selectedProvider === "ari" ? (
+                  <div className="space-y-4 text-sm">
+                    <div>
+                      <h4 className="font-semibold mb-2">Getting Started with Asterisk ARI:</h4>
+                      <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                        <li>Enable the ARI module in your Asterisk configuration (ari.conf)</li>
+                        <li>Create an ARI user with a password in ari.conf</li>
+                        <li>Create a Stasis application in your dialplan (extensions.conf)</li>
+                        <li>Ensure the ARI HTTP endpoint is accessible from Dograh</li>
+                        <li>Enter your ARI endpoint URL, app name, and password below</li>
+                      </ol>
+                    </div>
+                    <div className="bg-muted border border-border rounded p-3">
+                      <p className="text-sm">
+                        <strong>Note:</strong> ARI uses WebSocket connections for real-time
+                        event listening. The ARI manager process will automatically connect
+                        to your Asterisk instance once configured.
+                      </p>
+                    </div>
+                  </div>
+                ) : selectedProvider === "twilio" || selectedProvider === "vonage" ? (
                   <div className="aspect-video">
                     <iframe
                       style={{ border: 0 }}
@@ -407,6 +470,7 @@ export default function ConfigureTelephonyPage() {
                         <SelectItem value="vonage">Vonage</SelectItem>
                         <SelectItem value="vobiz">Vobiz</SelectItem>
                         <SelectItem value="cloudonix">Cloudonix</SelectItem>
+                        <SelectItem value="ari">Asterisk (ARI)</SelectItem>
                       </SelectContent>
                     </Select>
                     {hasExistingConfig && (
@@ -766,6 +830,140 @@ export default function ConfigureTelephonyPage() {
                         <p className="text-xs text-muted-foreground">
                           Phone numbers can be fetched from Cloudonix DNIDs if not
                           specified
+                        </p>
+                      </div>
+                    </>
+                  )}
+
+                  {/* ARI-specific fields */}
+                  {selectedProvider === "ari" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="ari_endpoint">ARI Endpoint URL</Label>
+                        <Input
+                          id="ari_endpoint"
+                          placeholder="http://asterisk.example.com:8088"
+                          {...register("ari_endpoint", {
+                            required:
+                              selectedProvider === "ari"
+                                ? "ARI endpoint URL is required"
+                                : false,
+                          })}
+                        />
+                        {errors.ari_endpoint && (
+                          <p className="text-sm text-red-500">
+                            {errors.ari_endpoint.message}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          The HTTP base URL for your Asterisk ARI (e.g., http://host:8088)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="app_name">Stasis App Name</Label>
+                        <Input
+                          id="app_name"
+                          placeholder="dograh"
+                          {...register("app_name", {
+                            required:
+                              selectedProvider === "ari"
+                                ? "Stasis app name is required"
+                                : false,
+                          })}
+                        />
+                        {errors.app_name && (
+                          <p className="text-sm text-red-500">
+                            {errors.app_name.message}
+                          </p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          The ARI username and Stasis application name configured in ari.conf
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="app_password">App Password</Label>
+                        <Input
+                          id="app_password"
+                          type="password"
+                          autoComplete="current-password"
+                          placeholder={
+                            hasExistingConfig
+                              ? "Leave masked to keep existing"
+                              : "Enter your ARI password"
+                          }
+                          {...register("app_password", {
+                            required:
+                              selectedProvider === "ari" && !hasExistingConfig
+                                ? "App password is required"
+                                : false,
+                          })}
+                        />
+                        {errors.app_password && (
+                          <p className="text-sm text-red-500">
+                            {errors.app_password.message}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="ws_client_name">WebSocket Client Name</Label>
+                        <Input
+                          id="ws_client_name"
+                          placeholder="dograh_staging"
+                          {...register("ws_client_name")}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Connection name from Asterisk&apos;s websocket_client.conf for external media streaming
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="inbound_workflow_id">Inbound Workflow ID (Optional)</Label>
+                        <Input
+                          id="inbound_workflow_id"
+                          type="number"
+                          placeholder="e.g. 42"
+                          {...register("inbound_workflow_id", { valueAsNumber: true })}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Workflow to activate for inbound calls received via ARI
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label>SIP Extensions / Numbers (Optional)</Label>
+                        {fromNumbers.map((number, index) => (
+                          <div key={index} className="flex gap-2">
+                            <Input
+                              placeholder="PJSIP/6001 or 6001"
+                              value={number}
+                              onChange={(e) => updatePhoneNumber(index, e.target.value)}
+                            />
+                            {fromNumbers.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => removePhoneNumber(index)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={addPhoneNumber}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Extension
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          SIP extensions or trunk numbers for outbound calls
                         </p>
                       </div>
                     </>
