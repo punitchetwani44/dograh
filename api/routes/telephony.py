@@ -425,13 +425,15 @@ async def _create_inbound_workflow_run(
             "caller_number": normalized_data.from_number,
             "called_number": normalized_data.to_number,
             "direction": "inbound",
-            "call_id": call_id,
             "account_id": normalized_data.account_id,
             "provider": provider,
             "data_source": data_source,
             "from_country": normalized_data.from_country,
             "to_country": normalized_data.to_country,
             "raw_webhook_data": normalized_data.raw_data,
+        },
+        gathered_context={
+            "call_id": call_id,
         },
     )
 
@@ -1273,11 +1275,11 @@ async def handle_vobiz_hangup_callback_by_workflow(
     try:
         db_client = WorkflowRunClient()
         async with db_client.async_session() as session:
-            # Fetch workflow run with matching call_id in initial_context
+            # Fetch workflow run with matching call_id in gathered_context
             query = text("""
                 SELECT id FROM workflow_runs 
                 WHERE workflow_id = :workflow_id 
-                AND CAST(initial_context AS jsonb) @> CAST(:call_id_json AS jsonb)
+                AND CAST(gathered_context AS jsonb) @> CAST(:call_id_json AS jsonb)
                 ORDER BY created_at DESC 
                 LIMIT 1
             """)

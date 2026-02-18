@@ -468,8 +468,10 @@ class ARIConnection:
                     "caller_number": caller_number,
                     "called_number": called_number,
                     "direction": "inbound",
-                    "call_id": call_id,
                     "provider": "ari",
+                },
+                gathered_context={
+                    "call_id": call_id,
                 },
             )
 

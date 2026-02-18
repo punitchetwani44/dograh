@@ -28,6 +28,7 @@ class WorkflowRunClient(BaseDBClient):
         user_id: int,
         call_type: CallType = CallType.OUTBOUND,
         initial_context: dict = None,
+        gathered_context: dict = None,
         campaign_id: int = None,
         queued_run_id: int = None,
     ) -> WorkflowRunModel:
@@ -79,6 +80,7 @@ class WorkflowRunClient(BaseDBClient):
                 mode=mode,
                 definition_id=current_def.id if current_def else None,
                 initial_context=initial_context or workflow.template_context_variables,
+                gathered_context=gathered_context or {},
                 campaign_id=campaign_id,
                 queued_run_id=queued_run_id,
                 storage_backend=current_backend.value,
