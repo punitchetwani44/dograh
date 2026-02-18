@@ -19,19 +19,15 @@ export function ConversationsList({ testSessionId }: ConversationsListProps) {
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { user, getAccessToken } = useAuth();
+    const { user } = useAuth();
 
     useEffect(() => {
         const fetchConversations = async () => {
             if (!user) return;
             try {
-                const accessToken = await getAccessToken();
                 const response = await getTestSessionConversationApiV1LooptalkTestSessionsTestSessionIdConversationGet({
                     path: {
                         test_session_id: testSessionId
-                    },
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
                     },
                 });
 
@@ -56,7 +52,7 @@ export function ConversationsList({ testSessionId }: ConversationsListProps) {
         // Poll for updates every 5 seconds
         const interval = setInterval(fetchConversations, 5000);
         return () => clearInterval(interval);
-    }, [testSessionId, user, getAccessToken]);
+    }, [testSessionId, user]);
 
     if (loading && conversations.length === 0) {
         return (

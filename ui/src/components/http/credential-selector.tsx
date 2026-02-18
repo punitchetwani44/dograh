@@ -36,7 +36,7 @@ export function CredentialSelector({
     description = "Select a credential for authentication, or leave empty for no auth.",
     showLabel = true,
 }: CredentialSelectorProps) {
-    const { getAccessToken } = useAuth();
+    useAuth();
 
     const [credentials, setCredentials] = useState<CredentialResponse[]>([]);
     const [loading, setLoading] = useState(false);
@@ -45,10 +45,7 @@ export function CredentialSelector({
     const fetchCredentials = useCallback(async () => {
         setLoading(true);
         try {
-            const accessToken = await getAccessToken();
-            const response = await listCredentialsApiV1CredentialsGet({
-                headers: { Authorization: `Bearer ${accessToken}` },
-            });
+            const response = await listCredentialsApiV1CredentialsGet({});
             if (response.error) {
                 console.error("Failed to fetch credentials:", response.error);
                 setCredentials([]);
@@ -63,7 +60,7 @@ export function CredentialSelector({
         } finally {
             setLoading(false);
         }
-    }, [getAccessToken]);
+    }, []);
 
     useEffect(() => {
         fetchCredentials();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,9 +11,8 @@ import DocumentList from "./DocumentList";
 import DocumentUpload from "./DocumentUpload";
 
 export default function FilesPage() {
-    const { user, getAccessToken, redirectToLogin, loading } = useAuth();
+    const { user, redirectToLogin, loading } = useAuth();
     const [refreshKey, setRefreshKey] = useState(0);
-    const [accessToken, setAccessToken] = useState<string>('');
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -22,24 +21,12 @@ export default function FilesPage() {
         }
     }, [loading, user, redirectToLogin]);
 
-    // Get access token
-    const fetchAccessToken = useCallback(async () => {
-        if (user) {
-            const token = await getAccessToken();
-            setAccessToken(token);
-        }
-    }, [user, getAccessToken]);
-
-    useEffect(() => {
-        fetchAccessToken();
-    }, [fetchAccessToken]);
-
     const handleUploadSuccess = () => {
         // Trigger refresh of document list
         setRefreshKey(prev => prev + 1);
     };
 
-    if (loading || !user || !accessToken) {
+    if (loading || !user) {
         return (
             <div className="container mx-auto px-4 py-8">
                 <div className="space-y-4">
@@ -75,7 +62,6 @@ export default function FilesPage() {
                         </CardHeader>
                         <CardContent>
                             <DocumentList
-                                accessToken={accessToken}
                                 refreshTrigger={refreshKey}
                             />
                         </CardContent>
@@ -92,7 +78,6 @@ export default function FilesPage() {
                         </CardHeader>
                         <CardContent>
                             <DocumentUpload
-                                accessToken={accessToken}
                                 onUploadSuccess={handleUploadSuccess}
                             />
                         </CardContent>

@@ -23,6 +23,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { useUserConfig } from '@/context/UserConfigContext';
+import { useAuth } from '@/lib/auth';
 import { usageFilterAttributes } from '@/lib/filterAttributes';
 import { decodeFiltersFromURL, encodeFiltersToURL } from '@/lib/filters';
 import { ActiveFilter, DateRangeValue } from '@/types/filters';
@@ -33,7 +34,8 @@ const getLocalTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 export default function UsagePage() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { userConfig, saveUserConfig, loading: userConfigLoading, accessToken, organizationPricing } = useUserConfig();
+    const { userConfig, saveUserConfig, loading: userConfigLoading, organizationPricing } = useUserConfig();
+    const auth = useAuth();
 
     // Current usage state
     const [currentUsage, setCurrentUsage] = useState<CurrentUsageResponse | null>(null);
@@ -58,7 +60,7 @@ export default function UsagePage() {
     });
 
     // Media preview dialog
-    const mediaPreview = MediaPreviewDialog({ accessToken });
+    const mediaPreview = MediaPreviewDialog();
 
     // Timezone state - initialize with empty string to avoid hydration mismatch
     const localTimezone = getLocalTimezone();
@@ -68,13 +70,9 @@ export default function UsagePage() {
 
     // Fetch current usage
     const fetchCurrentUsage = useCallback(async () => {
-        if (!accessToken) return;
+        if (!auth.isAuthenticated) return;
         try {
-            const response = await getCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGet({
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                }
-            });
+            const response = await getCurrentPeriodUsageApiV1OrganizationsUsageCurrentPeriodGet();
 
             if (response.data) {
                 setCurrentUsage(response.data);
@@ -84,11 +82,11 @@ export default function UsagePage() {
         } finally {
             setIsLoadingCurrent(false);
         }
-    }, [accessToken]);
+    }, [auth.isAuthenticated]);
 
     // Fetch usage history
     const fetchUsageHistory = useCallback(async (page: number, filters?: ActiveFilter[]) => {
-        if (!accessToken) return;
+        if (!auth.isAuthenticated) return;
         setIsLoadingHistory(true);
         try {
             let filterParam = undefined;
@@ -132,9 +130,6 @@ export default function UsagePage() {
                     ...(endDate && { end_date: endDate }),
                     ...(filterParam && { filters: filterParam })
                 },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                }
             });
 
             if (response.data) {
@@ -145,19 +140,16 @@ export default function UsagePage() {
         } finally {
             setIsLoadingHistory(false);
         }
-    }, [accessToken]);
+    }, [auth.isAuthenticated]);
 
     // Fetch daily usage breakdown
     const fetchDailyUsage = useCallback(async () => {
-        if (!accessToken || !organizationPricing?.price_per_second_usd) return;
+        if (!auth.isAuthenticated || !organizationPricing?.price_per_second_usd) return;
 
         setIsLoadingDaily(true);
         try {
             const response = await getDailyUsageBreakdownApiV1OrganizationsUsageDailyBreakdownGet({
                 query: { days: 7 },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                }
             });
 
             if (response.data) {
@@ -168,7 +160,7 @@ export default function UsagePage() {
         } finally {
             setIsLoadingDaily(false);
         }
-    }, [accessToken, organizationPricing]);
+    }, [auth.isAuthenticated, organizationPricing]);
 
     // Handle timezone change
     const handleTimezoneChange = async (timezone: ITimezoneOption | string) => {
@@ -200,20 +192,20 @@ export default function UsagePage() {
         }
     }, [userConfig, userConfigLoading, localTimezone]);
 
-    // Initial load - fetch when accessToken becomes available
+    // Initial load - fetch when auth becomes available
     useEffect(() => {
-        if (accessToken) {
+        if (auth.isAuthenticated) {
             fetchCurrentUsage();
             fetchUsageHistory(currentPage, activeFilters);
         }
-    }, [accessToken, currentPage, activeFilters, fetchUsageHistory, fetchCurrentUsage]);
+    }, [auth.isAuthenticated, currentPage, activeFilters, fetchUsageHistory, fetchCurrentUsage]);
 
     // Fetch daily usage when organizationPricing becomes available
     useEffect(() => {
-        if (accessToken && organizationPricing?.price_per_second_usd) {
+        if (auth.isAuthenticated && organizationPricing?.price_per_second_usd) {
             fetchDailyUsage();
         }
-    }, [accessToken, organizationPricing, fetchDailyUsage]);
+    }, [auth.isAuthenticated, organizationPricing, fetchDailyUsage]);
 
     // Update URL with query parameters
     const updateUrlParams = useCallback((params: { page?: number; filters?: ActiveFilter[] }) => {

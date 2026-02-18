@@ -56,9 +56,11 @@ function StackAuthContextProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = React.useCallback(async () => {
-    const user = userRef.current;
-    if (user?.signOut) {
-      await user.signOut();
+    // Redirect to Stack's server-side sign-out handler instead of calling
+    // signOut() client-side. Client-side signOut triggers an internal
+    // re-render that causes a hooks ordering violation in Stack's components.
+    if (typeof window !== 'undefined') {
+      window.location.href = '/handler/sign-out';
     }
   }, []);
 

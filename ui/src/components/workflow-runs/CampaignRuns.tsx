@@ -18,7 +18,7 @@ interface CampaignRunsProps {
 
 export function CampaignRuns({ campaignId, workflowId, searchParams }: CampaignRunsProps) {
     const router = useRouter();
-    const { getAccessToken } = useAuth();
+    const { isAuthenticated } = useAuth();
     const [runs, setRuns] = useState<WorkflowRunResponseSchema[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -29,7 +29,6 @@ export function CampaignRuns({ campaignId, workflowId, searchParams }: CampaignR
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [isExecutingFilters, setIsExecutingFilters] = useState(false);
-    const [accessToken, setAccessToken] = useState<string | null>(null);
 
     // Sort state (initialized from URL)
     const [sortBy, setSortBy] = useState<string | null>(() => {
@@ -50,22 +49,13 @@ export function CampaignRuns({ campaignId, workflowId, searchParams }: CampaignR
         return searchParams ? decodeFiltersFromURL(searchParams, availableAttributes) : [];
     });
 
-    // Get access token on mount
-    useEffect(() => {
-        const fetchToken = async () => {
-            const token = await getAccessToken();
-            setAccessToken(token);
-        };
-        fetchToken();
-    }, [getAccessToken]);
-
     const fetchCampaignRuns = useCallback(async (
         page: number,
         filters?: ActiveFilter[],
         sortByParam?: string | null,
         sortOrderParam?: 'asc' | 'desc'
     ) => {
-        if (!accessToken) return;
+        if (!isAuthenticated) return;
         try {
             setLoading(true);
             // Prepare filter data for API
@@ -88,9 +78,6 @@ export function CampaignRuns({ campaignId, workflowId, searchParams }: CampaignR
                     ...(sortByParam && { sort_by: sortByParam }),
                     ...(sortOrderParam && { sort_order: sortOrderParam }),
                 },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                }
             });
 
             if (response.error) {
@@ -111,7 +98,7 @@ export function CampaignRuns({ campaignId, workflowId, searchParams }: CampaignR
         } finally {
             setLoading(false);
         }
-    }, [campaignId, accessToken]);
+    }, [campaignId, isAuthenticated]);
 
     const updatePageInUrl = useCallback((page: number, filters?: ActiveFilter[], sortByParam?: string | null, sortOrderParam?: 'asc' | 'desc') => {
         const params = new URLSearchParams();
@@ -136,10 +123,10 @@ export function CampaignRuns({ campaignId, workflowId, searchParams }: CampaignR
     }, [router, campaignId]);
 
     useEffect(() => {
-        if (accessToken) {
+        if (isAuthenticated) {
             fetchCampaignRuns(currentPage, appliedFilters, sortBy, sortOrder);
         }
-    }, [currentPage, appliedFilters, fetchCampaignRuns, accessToken, sortBy, sortOrder]);
+    }, [currentPage, appliedFilters, fetchCampaignRuns, isAuthenticated, sortBy, sortOrder]);
 
     const handleApplyFilters = useCallback(async () => {
         setIsExecutingFilters(true);
@@ -213,7 +200,6 @@ export function CampaignRuns({ campaignId, workflowId, searchParams }: CampaignR
             sortOrder={sortOrder}
             onSort={handleSort}
             workflowId={workflowId}
-            accessToken={accessToken}
             onReload={handleReload}
             title="Campaign Workflow Runs"
             emptyMessage="No workflow runs found for this campaign"

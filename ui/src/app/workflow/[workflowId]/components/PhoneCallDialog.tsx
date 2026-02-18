@@ -28,7 +28,6 @@ interface PhoneCallDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     workflowId: number;
-    getAccessToken: () => Promise<string>;
     user: { id: string; email?: string };
 }
 
@@ -36,7 +35,6 @@ export const PhoneCallDialog = ({
     open,
     onOpenChange,
     workflowId,
-    getAccessToken,
     user,
 }: PhoneCallDialogProps) => {
     const router = useRouter();
@@ -57,10 +55,7 @@ export const PhoneCallDialog = ({
 
             setCheckingConfig(true);
             try {
-                const accessToken = await getAccessToken();
-                const configResponse = await getTelephonyConfigurationApiV1OrganizationsTelephonyConfigGet({
-                    headers: { 'Authorization': `Bearer ${accessToken}` },
-                });
+                const configResponse = await getTelephonyConfigurationApiV1OrganizationsTelephonyConfigGet({});
 
                 if (configResponse.error || (!configResponse.data?.twilio && !configResponse.data?.vonage && !configResponse.data?.vobiz && !configResponse.data?.cloudonix && !configResponse.data?.ari)) {
                     setNeedsConfiguration(true);
@@ -76,7 +71,7 @@ export const PhoneCallDialog = ({
         };
 
         checkConfig();
-    }, [open, getAccessToken]);
+    }, [open]);
 
     // Reset state when dialog closes
     useEffect(() => {
@@ -119,7 +114,6 @@ export const PhoneCallDialog = ({
         setCallSuccessMsg(null);
         try {
             if (!user || !userConfig) return;
-            const accessToken = await getAccessToken();
 
             // Save phone number if it has changed
             if (phoneChanged) {
@@ -132,7 +126,6 @@ export const PhoneCallDialog = ({
                     workflow_id: workflowId,
                     phone_number: phoneNumber
                 },
-                headers: { 'Authorization': `Bearer ${accessToken}` },
             });
 
             if (response.error) {

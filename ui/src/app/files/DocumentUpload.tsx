@@ -14,14 +14,13 @@ import { Progress } from '@/components/ui/progress';
 import logger from '@/lib/logger';
 
 interface DocumentUploadProps {
-  accessToken: string;
   onUploadSuccess: () => void;
 }
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 const ACCEPTED_FILE_TYPES = ['.pdf', '.docx', '.doc', '.txt'];
 
-export default function DocumentUpload({ accessToken, onUploadSuccess }: DocumentUploadProps) {
+export default function DocumentUpload({ onUploadSuccess }: DocumentUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [dragActive, setDragActive] = useState(false);
@@ -62,9 +61,6 @@ export default function DocumentUpload({ accessToken, onUploadSuccess }: Documen
             uploaded_at: new Date().toISOString(),
           },
         },
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
       });
 
       if (uploadUrlResponse.error || !uploadUrlResponse.data) {
@@ -97,9 +93,6 @@ export default function DocumentUpload({ accessToken, onUploadSuccess }: Documen
         body: {
           document_uuid: uploadData.document_uuid,
           s3_key: uploadData.s3_key,
-        },
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
         },
       });
 

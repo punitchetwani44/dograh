@@ -11,9 +11,11 @@ import {
   HelpCircle,
   Home,
   Key,
+  LogOut,
   Megaphone,
   MessageSquare,
   Phone,
+  Settings,
   Star,
   TrendingUp,
   Workflow,
@@ -26,6 +28,14 @@ import React from "react";
 
 import ThemeToggle from "@/components/ThemeSwitcher";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Sidebar,
   SidebarContent,
@@ -50,11 +60,6 @@ import { useAppConfig } from "@/context/AppConfigContext";
 import { useAuth } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
-// Conditionally load Stack components only when using Stack auth
-const StackUserButton = React.lazy(() =>
-  import("@stackframe/stack").then((mod) => ({ default: mod.UserButton }))
-);
-
 // Lazy load SelectedTeamSwitcher - we'll pass selectedTeam from our context
 const StackTeamSwitcher = React.lazy(() =>
   import("@stackframe/stack").then((mod) => ({
@@ -66,7 +71,7 @@ export function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { state } = useSidebar();
-  const { provider, getSelectedTeam } = useAuth();
+  const { provider, getSelectedTeam, logout, user } = useAuth();
   const { config } = useAppConfig();
 
   // Get selected team for Stack auth (cast to Team type from Stack)
@@ -400,31 +405,53 @@ export function AppSidebar() {
             </>
           )}
 
-          {/* User Button for Stack Auth - at the bottom */}
+          {/* User Button - at the bottom */}
           {provider === "stack" && (
-            <React.Suspense
-              fallback={
-                <div className={cn(
-                  "animate-pulse bg-muted rounded",
-                  state === "collapsed" ? "h-8 w-8" : "h-[34px] w-[34px]"
-                )} />
-              }
-            >
-              <div className={cn(
-                "flex",
-                state === "collapsed" ? "justify-center" : "justify-start"
-              )}>
-                <StackUserButton
-                  extraItems={[
-                    {
-                      text: "Usage",
-                      icon: <CircleDollarSign strokeWidth={2} size={16} />,
-                      onClick: () => router.push("/usage"),
-                    },
-                  ]}
-                />
-              </div>
-            </React.Suspense>
+            <div className={cn(
+              "flex",
+              state === "collapsed" ? "justify-center" : "justify-start"
+            )}>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full h-8 w-8 cursor-pointer">
+                    <span className="text-xs font-medium">
+                      {(user?.displayName || (user as { primaryEmail?: string })?.primaryEmail || "")
+                        .split(/[\s@]/)
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((s: string) => s[0]?.toUpperCase())
+                        .join("")
+                        || "U"}
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="top" align="start" className="w-56">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      {user?.displayName && (
+                        <p className="text-sm font-medium">{user.displayName}</p>
+                      )}
+                      {(user as { primaryEmail?: string })?.primaryEmail && (
+                        <p className="text-xs text-muted-foreground">{(user as { primaryEmail?: string }).primaryEmail}</p>
+                      )}
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => router.push("/handler/account-settings")} className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Account settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => router.push("/usage")} className="cursor-pointer">
+                    <CircleDollarSign className="mr-2 h-4 w-4" />
+                    Usage
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => logout()} className="cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           )}
 
           {/* Theme Toggle - at the very bottom */}

@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useUserConfig } from '@/context/UserConfigContext';
+import { useAuth } from '@/lib/auth';
 
 import { DispositionChart } from './components/DispositionChart';
 import { DurationChart } from './components/DurationChart';
@@ -55,20 +56,18 @@ export default function ReportsPage() {
   const [report, setReport] = useState<DailyReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { userConfig, accessToken } = useUserConfig();
+  const { userConfig } = useUserConfig();
+  const auth = useAuth();
 
   const timezone = userConfig?.timezone || 'America/New_York';
 
   // Fetch workflows on mount
   useEffect(() => {
     const fetchWorkflows = async () => {
-      if (!accessToken) return;
+      if (!auth.isAuthenticated) return;
 
       try {
         const response = await getWorkflowOptionsApiV1OrganizationsReportsWorkflowsGet({
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
         });
         if (response.data) {
           setWorkflows(response.data);
@@ -78,12 +77,12 @@ export default function ReportsPage() {
       }
     };
     fetchWorkflows();
-  }, [accessToken]);
+  }, [auth.isAuthenticated]);
 
   // Fetch report data when date or workflow changes
   useEffect(() => {
     const fetchReport = async () => {
-      if (!accessToken) return;
+      if (!auth.isAuthenticated) return;
 
       setLoading(true);
       setError(null);
@@ -98,9 +97,6 @@ export default function ReportsPage() {
             timezone,
             ...(workflowId && { workflow_id: workflowId })
           },
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
         });
 
         if (response.data) {
@@ -115,7 +111,7 @@ export default function ReportsPage() {
     };
 
     fetchReport();
-  }, [selectedDate, selectedWorkflow, timezone, accessToken]);
+  }, [selectedDate, selectedWorkflow, timezone, auth.isAuthenticated]);
 
   const handlePreviousDay = () => {
     setSelectedDate(subDays(selectedDate, 1));
@@ -126,7 +122,7 @@ export default function ReportsPage() {
   };
 
   const handleDownloadCSV = async () => {
-    if (!accessToken) return;
+    if (!auth.isAuthenticated) return;
 
     try {
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
@@ -139,9 +135,6 @@ export default function ReportsPage() {
           timezone,
           ...(workflowId && { workflow_id: workflowId })
         },
-        headers: {
-          Authorization: `Bearer ${accessToken}`
-        }
       });
 
       if (response.data && response.data.length > 0) {

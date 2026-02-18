@@ -16,27 +16,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import logger from '@/lib/logger';
 
 interface DocumentListProps {
-  accessToken: string;
   refreshTrigger: number;
 }
 
-export default function DocumentList({ accessToken, refreshTrigger }: DocumentListProps) {
+export default function DocumentList({ refreshTrigger }: DocumentListProps) {
   const [documents, setDocuments] = useState<DocumentResponseSchema[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const fetchDocuments = useCallback(async () => {
-    if (!accessToken) return;
-
     try {
       setIsLoading(true);
       setError(null);
 
       const response = await listDocumentsApiV1KnowledgeBaseDocumentsGet({
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
         query: {
           limit: 100,
           offset: 0,
@@ -54,7 +48,7 @@ export default function DocumentList({ accessToken, refreshTrigger }: DocumentLi
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken]);
+  }, []);
 
   // Fetch documents on mount and when refreshTrigger changes
   useEffect(() => {
@@ -84,9 +78,6 @@ export default function DocumentList({ accessToken, refreshTrigger }: DocumentLi
       const response = await deleteDocumentApiV1KnowledgeBaseDocumentsDocumentUuidDelete({
         path: {
           document_uuid: documentUuid,
-        },
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
         },
       });
 

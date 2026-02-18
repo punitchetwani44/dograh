@@ -47,7 +47,6 @@ export interface WorkflowRunsTableProps {
 
     // Navigation & Actions
     workflowId: number;
-    accessToken: string | null;
 
     // Reload
     onReload?: () => void;
@@ -78,7 +77,6 @@ export function WorkflowRunsTable({
     sortOrder = 'desc',
     onSort,
     workflowId,
-    accessToken,
     onReload,
     title = "Workflow Run History",
     subtitle,
@@ -88,7 +86,7 @@ export function WorkflowRunsTable({
     const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
 
     // Media preview dialog
-    const mediaPreview = MediaPreviewDialog({ accessToken });
+    const mediaPreview = MediaPreviewDialog();
 
     const formatDate = (dateString: string) => new Date(dateString).toLocaleString();
 

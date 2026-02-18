@@ -7,7 +7,7 @@ import { getWorkflowApiV1WorkflowFetchWorkflowIdGet, getWorkflowRunsApiV1Workflo
 import { WorkflowRunResponseSchema } from "@/client/types.gen";
 import { WorkflowRunsTable } from "@/components/workflow-runs";
 import { DISPOSITION_CODES } from "@/constants/dispositionCodes";
-import { useUserConfig } from '@/context/UserConfigContext';
+import { useAuth } from '@/lib/auth';
 import { decodeFiltersFromURL, encodeFiltersToURL } from "@/lib/filters";
 import { ActiveFilter, availableAttributes, FilterAttribute } from "@/types/filters";
 
@@ -39,7 +39,7 @@ export function WorkflowExecutions({ workflowId, searchParams }: WorkflowExecuti
         return order === 'asc' ? 'asc' : 'desc';
     });
 
-    const { accessToken } = useUserConfig();
+    const { isAuthenticated } = useAuth();
 
     // Initialize filters from URL
     const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>(() => {
@@ -53,11 +53,10 @@ export function WorkflowExecutions({ workflowId, searchParams }: WorkflowExecuti
 
     // Load disposition codes from workflow configuration
     const loadDispositionCodes = useCallback(async () => {
-        if (!accessToken) return;
+        if (!isAuthenticated) return;
         try {
             const response = await getWorkflowApiV1WorkflowFetchWorkflowIdGet({
                 path: { workflow_id: Number(workflowId) },
-                headers: { 'Authorization': `Bearer ${accessToken}` }
             });
 
             const workflow = response.data;
@@ -81,7 +80,7 @@ export function WorkflowExecutions({ workflowId, searchParams }: WorkflowExecuti
         } catch (err) {
             console.error("Failed to load disposition codes:", err);
         }
-    }, [workflowId, accessToken]);
+    }, [workflowId, isAuthenticated]);
 
     useEffect(() => {
         loadDispositionCodes();
@@ -93,7 +92,7 @@ export function WorkflowExecutions({ workflowId, searchParams }: WorkflowExecuti
         sortByParam?: string | null,
         sortOrderParam?: 'asc' | 'desc'
     ) => {
-        if (!accessToken) return;
+        if (!isAuthenticated) return;
         try {
             setLoading(true);
             // Prepare filter data for API
@@ -116,9 +115,6 @@ export function WorkflowExecutions({ workflowId, searchParams }: WorkflowExecuti
                     ...(sortByParam && { sort_by: sortByParam }),
                     ...(sortOrderParam && { sort_order: sortOrderParam }),
                 },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                }
             });
 
             if (response.error) {
@@ -138,7 +134,7 @@ export function WorkflowExecutions({ workflowId, searchParams }: WorkflowExecuti
         } finally {
             setLoading(false);
         }
-    }, [workflowId, accessToken]);
+    }, [workflowId, isAuthenticated]);
 
     const updatePageInUrl = useCallback((page: number, filters?: ActiveFilter[], sortByParam?: string | null, sortOrderParam?: 'asc' | 'desc') => {
         const params = new URLSearchParams();
@@ -234,7 +230,6 @@ export function WorkflowExecutions({ workflowId, searchParams }: WorkflowExecuti
                 sortOrder={sortOrder}
                 onSort={handleSort}
                 workflowId={workflowId}
-                accessToken={accessToken}
                 onReload={handleReload}
             />
         </div>

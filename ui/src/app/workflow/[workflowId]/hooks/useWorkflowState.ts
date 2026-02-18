@@ -107,7 +107,6 @@ interface UseWorkflowStateProps {
     initialTemplateContextVariables?: Record<string, string>;
     initialWorkflowConfigurations?: WorkflowConfigurations;
     user: { id: string; email?: string };  // Minimal user type needed
-    getAccessToken: () => Promise<string>;
 }
 
 export const useWorkflowState = ({
@@ -117,7 +116,6 @@ export const useWorkflowState = ({
     initialTemplateContextVariables,
     initialWorkflowConfigurations,
     user,
-    getAccessToken
 }: UseWorkflowStateProps) => {
     const router = useRouter();
     const rfInstance = useRef<ReactFlowInstance<FlowNode, FlowEdge> | null>(null);
@@ -245,13 +243,9 @@ export const useWorkflowState = ({
     const validateWorkflow = useCallback(async () => {
         if (!user) return;
         try {
-            const accessToken = await getAccessToken();
             const response = await validateWorkflowApiV1WorkflowWorkflowIdValidatePost({
                 path: {
                     workflow_id: workflowId,
-                },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
                 },
             });
 
@@ -305,13 +299,12 @@ export const useWorkflowState = ({
         } catch (error) {
             logger.error(`Unexpected validation error: ${error}`);
         }
-    }, [workflowId, user, getAccessToken, clearValidationErrors, markNodeAsInvalid, markEdgeAsInvalid, setWorkflowValidationErrors]);
+    }, [workflowId, user, clearValidationErrors, markNodeAsInvalid, markEdgeAsInvalid, setWorkflowValidationErrors]);
 
     // Save workflow function
     const saveWorkflow = useCallback(async (updateWorkflowDefinition: boolean = true) => {
         if (!user || !rfInstance.current) return;
         const flow = rfInstance.current.toObject();
-        const accessToken = await getAccessToken();
         try {
             await updateWorkflowApiV1WorkflowWorkflowIdPut({
                 path: {
@@ -321,9 +314,6 @@ export const useWorkflowState = ({
                     name: workflowName,
                     workflow_definition: updateWorkflowDefinition ? flow : null,
                 },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                },
             });
             setIsDirty(false);
         } catch (error) {
@@ -332,7 +322,7 @@ export const useWorkflowState = ({
 
         // Validate after saving
         await validateWorkflow();
-    }, [workflowId, workflowName, setIsDirty, user, getAccessToken, validateWorkflow]);
+    }, [workflowId, workflowName, setIsDirty, user, validateWorkflow]);
 
     // Set up keyboard shortcut for save (Cmd/Ctrl + S)
     useEffect(() => {
@@ -386,7 +376,6 @@ export const useWorkflowState = ({
     const onRun = async (mode: string) => {
         if (!user) return;
         const workflowRunName = `WR-${getRandomId()}`;
-        const accessToken = await getAccessToken();
         const response = await createWorkflowRunApiV1WorkflowWorkflowIdRunsPost({
             path: {
                 workflow_id: workflowId,
@@ -395,9 +384,6 @@ export const useWorkflowState = ({
                 mode,
                 name: workflowRunName
             },
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-            },
         });
         router.push(`/workflow/${workflowId}/run/${response.data?.id}`);
     };
@@ -405,7 +391,6 @@ export const useWorkflowState = ({
     // Save template context variables
     const saveTemplateContextVariables = useCallback(async (variables: Record<string, string>) => {
         if (!user) return;
-        const accessToken = await getAccessToken();
         try {
             await updateWorkflowApiV1WorkflowWorkflowIdPut({
                 path: {
@@ -416,9 +401,6 @@ export const useWorkflowState = ({
                     workflow_definition: null,
                     template_context_variables: variables,
                 },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                },
             });
             setTemplateContextVariables(variables);
             logger.info('Template context variables saved successfully');
@@ -426,12 +408,11 @@ export const useWorkflowState = ({
             logger.error(`Error saving template context variables: ${error}`);
             throw error;
         }
-    }, [workflowId, workflowName, user, getAccessToken, setTemplateContextVariables]);
+    }, [workflowId, workflowName, user, setTemplateContextVariables]);
 
     // Save workflow configurations
     const saveWorkflowConfigurations = useCallback(async (configurations: WorkflowConfigurations, newWorkflowName: string) => {
         if (!user) return;
-        const accessToken = await getAccessToken();
         // Preserve the current dictionary when saving other configurations
         const currentDictionary = useWorkflowStore.getState().dictionary;
         const configurationsWithDictionary: WorkflowConfigurations = { ...configurations, dictionary: currentDictionary };
@@ -445,9 +426,6 @@ export const useWorkflowState = ({
                     workflow_definition: null,
                     workflow_configurations: configurationsWithDictionary as Record<string, unknown>,
                 },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                },
             });
             setWorkflowConfigurations(configurationsWithDictionary);
             setWorkflowName(newWorkflowName);
@@ -456,12 +434,11 @@ export const useWorkflowState = ({
             logger.error(`Error saving workflow configurations: ${error}`);
             throw error;
         }
-    }, [workflowId, user, getAccessToken, setWorkflowConfigurations, setWorkflowName]);
+    }, [workflowId, user, setWorkflowConfigurations, setWorkflowName]);
 
     // Save dictionary
     const saveDictionary = useCallback(async (newDictionary: string) => {
         if (!user) return;
-        const accessToken = await getAccessToken();
         const currentConfigurations = useWorkflowStore.getState().workflowConfigurations ?? DEFAULT_WORKFLOW_CONFIGURATIONS;
         const updatedConfigurations: WorkflowConfigurations = { ...currentConfigurations, dictionary: newDictionary };
         try {
@@ -474,9 +451,6 @@ export const useWorkflowState = ({
                     workflow_definition: null,
                     workflow_configurations: updatedConfigurations as Record<string, unknown>,
                 },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                },
             });
             setDictionary(newDictionary);
             setWorkflowConfigurations(updatedConfigurations);
@@ -484,7 +458,7 @@ export const useWorkflowState = ({
             logger.error(`Error saving dictionary: ${error}`);
             throw error;
         }
-    }, [workflowId, workflowName, user, getAccessToken, setDictionary, setWorkflowConfigurations]);
+    }, [workflowId, workflowName, user, setDictionary, setWorkflowConfigurations]);
 
     // Update rfInstance when it changes
     useEffect(() => {

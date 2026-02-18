@@ -1,5 +1,5 @@
 /*
-  Helps provide authentication token to LocalAuthService once its loaded
+  Provides authentication token to LocalProviderWrapper once loaded
   in the browser
 */
 import { cookies } from 'next/headers';
