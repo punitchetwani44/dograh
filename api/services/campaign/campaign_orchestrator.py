@@ -14,6 +14,7 @@ import asyncio
 import signal
 from datetime import UTC, datetime, timedelta
 from typing import Dict
+from zoneinfo import ZoneInfo
 
 import redis.asyncio as aioredis
 from loguru import logger
@@ -25,11 +26,13 @@ from api.enums import RedisChannel
 from api.services.campaign.campaign_event_protocol import (
     BatchCompletedEvent,
     BatchFailedEvent,
+    CircuitBreakerTrippedEvent,
     RetryNeededEvent,
     SyncCompletedEvent,
     parse_campaign_event,
 )
 from api.services.campaign.campaign_event_publisher import CampaignEventPublisher
+from api.services.campaign.circuit_breaker import circuit_breaker
 from api.tasks.arq import enqueue_job
 from api.tasks.function_names import FunctionNames
 
@@ -165,6 +168,14 @@ class CampaignOrchestrator:
             await self._schedule_next_batch(campaign_id)
             self._last_activity[campaign_id] = datetime.now(UTC)
 
+        elif isinstance(event, CircuitBreakerTrippedEvent):
+            # Circuit breaker tripped - clear state for this campaign
+            logger.warning(
+                f"campaign_id: {campaign_id} - Circuit breaker tripped event received: "
+                f"failure_rate={event.failure_rate:.2%}"
+            )
+            self._clear_campaign_state(campaign_id)
+
     async def _handle_retry_event(self, event: RetryNeededEvent):
         """Process retry event and schedule if eligible (from campaign_retry_manager)."""
 
@@ -274,6 +285,53 @@ class CampaignOrchestrator:
             f"last reason: {reason}"
         )
 
+    def _is_within_schedule(self, campaign: CampaignModel) -> bool:
+        """Check if the current time falls within the campaign's schedule windows.
+
+        Returns True (allow scheduling) if:
+        - No schedule_config in metadata
+        - Schedule is disabled
+        - No slots configured
+        - Invalid timezone (fail open)
+        - Current time matches a slot
+        """
+        if not campaign.orchestrator_metadata:
+            return True
+
+        schedule_config = campaign.orchestrator_metadata.get("schedule_config")
+        if not schedule_config:
+            return True
+
+        if not schedule_config.get("enabled", False):
+            return True
+
+        slots = schedule_config.get("slots")
+        if not slots:
+            return True
+
+        timezone_str = schedule_config.get("timezone", "UTC")
+        try:
+            tz = ZoneInfo(timezone_str)
+        except (KeyError, Exception):
+            logger.warning(
+                f"campaign_id: {campaign.id} - Invalid timezone '{timezone_str}' in schedule_config, "
+                f"failing open (allowing scheduling)"
+            )
+            return True
+
+        now = datetime.now(tz)
+        current_day = now.weekday()  # 0=Monday through 6=Sunday
+        current_time = now.strftime("%H:%M")
+
+        for slot in slots:
+            if slot.get("day_of_week") == current_day:
+                start = slot.get("start_time", "")
+                end = slot.get("end_time", "")
+                if start <= current_time < end:
+                    return True
+
+        return False
+
     async def _schedule_next_batch(self, campaign_id: int):
         """Schedule next batch immediately if work available."""
 
@@ -300,6 +358,40 @@ class CampaignOrchestrator:
                 logger.info(
                     f"campaign_id: {campaign_id} - Campaign not in running state: {campaign.state}"
                 )
+                return
+
+            # Check schedule window before scheduling
+            if not self._is_within_schedule(campaign):
+                logger.info(
+                    f"campaign_id: {campaign_id} - Outside scheduled time window, skipping batch"
+                )
+                return
+
+            # Safety net: check circuit breaker before scheduling
+            cb_config = None
+            if campaign.orchestrator_metadata:
+                cb_config = campaign.orchestrator_metadata.get("circuit_breaker")
+
+            is_open, stats = await circuit_breaker.is_circuit_open(
+                campaign_id=campaign_id,
+                config=cb_config,
+            )
+
+            if is_open and stats:
+                logger.warning(
+                    f"campaign_id: {campaign_id} - Circuit breaker is open, "
+                    f"pausing campaign. Stats: {stats}"
+                )
+                await db_client.update_campaign(campaign_id=campaign_id, state="paused")
+                await self.publisher.publish_circuit_breaker_tripped(
+                    campaign_id=campaign_id,
+                    failure_rate=stats["failure_rate"],
+                    failure_count=stats["failure_count"],
+                    success_count=stats["success_count"],
+                    threshold=stats["threshold"],
+                    window_seconds=stats["window_seconds"],
+                )
+                self._clear_campaign_state(campaign_id)
                 return
 
             # Check for available work (queued runs + due retries)
@@ -399,6 +491,12 @@ class CampaignOrchestrator:
                 if campaign_id not in self._batch_in_progress:
                     has_work = await self._has_pending_work(campaign_id)
                     if has_work:
+                        if not self._is_within_schedule(campaign):
+                            logger.info(
+                                f"campaign_id: {campaign_id} - Found orphaned work but outside "
+                                f"schedule window, skipping"
+                            )
+                            continue
                         logger.info(
                             f"campaign_id: {campaign_id} - Found orphaned work (likely new retries), "
                             f"scheduling batch to process"
@@ -428,6 +526,12 @@ class CampaignOrchestrator:
         # Check for any pending work
         has_work = await self._has_pending_work(campaign_id)
         if has_work:
+            # If outside schedule window, don't mark complete — work remains for next window
+            if not self._is_within_schedule(campaign):
+                logger.debug(
+                    f"campaign_id: {campaign_id} - Outside schedule window with pending work, "
+                    f"not marking complete"
+                )
             return False
 
         # Check in-memory last activity

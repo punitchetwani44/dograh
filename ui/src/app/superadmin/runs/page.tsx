@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useUserConfig } from '@/context/UserConfigContext';
+import { useAuth } from '@/lib/auth';
 import{ superadminFilterAttributes } from "@/lib/filterAttributes";
 import { decodeFiltersFromURL, encodeFiltersToURL } from '@/lib/filters';
 import { impersonateAsSuperadmin } from '@/lib/utils';
@@ -107,10 +107,10 @@ export default function RunsPage() {
     const [commentText, setCommentText] = useState('');
     const [selectedRowId, setSelectedRowId] = useState<number | null>(null);
 
-    const { accessToken } = useUserConfig();
+    const auth = useAuth();
 
     // Media preview dialog
-    const mediaPreview = MediaPreviewDialog({ accessToken });
+    const mediaPreview = MediaPreviewDialog();
 
     const fetchRuns = useCallback(async (
         page: number,
@@ -119,7 +119,7 @@ export default function RunsPage() {
         sortByParam?: string | null,
         sortOrderParam?: 'asc' | 'desc'
     ) => {
-        if (!accessToken) return;
+        if (!auth.isAuthenticated) return;
 
         // Don't show loading state for auto-refresh to prevent UI flicker
         if (!isAutoRefresh) {
@@ -148,9 +148,6 @@ export default function RunsPage() {
                     ...(sortByParam && { sort_by: sortByParam }),
                     ...(sortOrderParam && { sort_order: sortOrderParam }),
                 },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                }
             });
 
             if (response.data) {
@@ -170,7 +167,7 @@ export default function RunsPage() {
                 setIsAutoRefreshing(false);
             }
         }
-    }, [limit, accessToken]);
+    }, [limit, auth.isAuthenticated]);
 
     const updatePageInUrl = useCallback((page: number, filters?: ActiveFilter[], sortByParam?: string | null, sortOrderParam?: 'asc' | 'desc') => {
         const params = new URLSearchParams();
@@ -195,11 +192,11 @@ export default function RunsPage() {
     }, [router]);
 
     useEffect(() => {
-        // Fetch runs when token is available and when page/sort changes
-        if (accessToken) {
+        // Fetch runs when auth is available and when page/sort changes
+        if (auth.isAuthenticated) {
             fetchRuns(currentPage, appliedFilters, false, sortBy, sortOrder);
         }
-    }, [currentPage, accessToken, appliedFilters, fetchRuns, sortBy, sortOrder]);
+    }, [currentPage, auth.isAuthenticated, appliedFilters, fetchRuns, sortBy, sortOrder]);
 
     // Auto-refresh every 5 seconds when enabled and filters are active
     useEffect(() => {
@@ -262,7 +259,7 @@ export default function RunsPage() {
 
     // Save comment function declared outside JSX (requirement #2)
     const saveAdminComment = useCallback(async () => {
-        if (commentRunId === null || !accessToken) return;
+        if (commentRunId === null || !auth.isAuthenticated) return;
         try {
             await setAdminCommentApiV1SuperuserWorkflowRunsRunIdCommentPost({
                 path: {
@@ -270,9 +267,6 @@ export default function RunsPage() {
                 },
                 body: {
                     admin_comment: commentText,
-                },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
                 },
             });
 
@@ -284,7 +278,7 @@ export default function RunsPage() {
             console.error('Failed to set admin comment', err);
             alert('Failed to save comment. Please try again.');
         }
-    }, [commentRunId, commentText, accessToken]);
+    }, [commentRunId, commentText, auth.isAuthenticated]);
 
     /**
      * ----------------------------------------------------------------------------------
@@ -308,10 +302,11 @@ export default function RunsPage() {
      */
     const impersonateAndMaybeRedirect = useCallback(
         async (targetUserId: number | undefined, redirectPath?: string) => {
-            if (!targetUserId || !accessToken) return;
+            if (!targetUserId || !auth.isAuthenticated) return;
             try {
+                const token = await auth.getAccessToken();
                 await impersonateAsSuperadmin({
-                    accessToken: accessToken,
+                    accessToken: token,
                     userId: targetUserId,
                     redirectPath,
                     openInNewTab: true,
@@ -321,7 +316,7 @@ export default function RunsPage() {
                 alert('Failed to impersonate the user. Please try again.');
             }
         },
-        [accessToken],
+        [auth],
     );
 
     if (isLoading && runs.length === 0) {

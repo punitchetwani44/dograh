@@ -11,6 +11,7 @@ from loguru import logger
 from api.db import db_client
 from api.enums import OrganizationConfigurationKey
 from api.services.telephony.base import TelephonyProvider
+from api.services.telephony.providers.ari_provider import ARIProvider
 from api.services.telephony.providers.cloudonix_provider import CloudonixProvider
 from api.services.telephony.providers.twilio_provider import TwilioProvider
 from api.services.telephony.providers.vobiz_provider import VobizProvider
@@ -75,6 +76,15 @@ async def load_telephony_config(organization_id: int) -> Dict[str, Any]:
                 "domain_id": config.value.get("domain_id"),
                 "from_numbers": config.value.get("from_numbers", []),
             }
+        elif provider == "ari":
+            return {
+                "provider": "ari",
+                "ari_endpoint": config.value.get("ari_endpoint"),
+                "app_name": config.value.get("app_name"),
+                "app_password": config.value.get("app_password"),
+                "inbound_workflow_id": config.value.get("inbound_workflow_id"),
+                "from_numbers": config.value.get("from_numbers", []),
+            }
         else:
             raise ValueError(f"Unknown provider in config: {provider}")
 
@@ -115,6 +125,9 @@ async def get_telephony_provider(organization_id: int) -> TelephonyProvider:
     elif provider_type == "cloudonix":
         return CloudonixProvider(config)
 
+    elif provider_type == "ari":
+        return ARIProvider(config)
+
     else:
         raise ValueError(f"Unknown telephony provider: {provider_type}")
 
@@ -127,4 +140,10 @@ async def get_all_telephony_providers() -> List[Type[TelephonyProvider]]:
     Returns:
         List of provider classes that can be used for webhook detection
     """
-    return [CloudonixProvider, TwilioProvider, VobizProvider, VonageProvider]
+    return [
+        ARIProvider,
+        CloudonixProvider,
+        TwilioProvider,
+        VobizProvider,
+        VonageProvider,
+    ]

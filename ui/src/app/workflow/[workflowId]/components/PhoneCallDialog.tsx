@@ -21,13 +21,13 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { useUserConfig } from "@/context/UserConfigContext";
 
 interface PhoneCallDialogProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     workflowId: number;
-    getAccessToken: () => Promise<string>;
     user: { id: string; email?: string };
 }
 
@@ -35,7 +35,6 @@ export const PhoneCallDialog = ({
     open,
     onOpenChange,
     workflowId,
-    getAccessToken,
     user,
 }: PhoneCallDialogProps) => {
     const router = useRouter();
@@ -47,6 +46,7 @@ export const PhoneCallDialog = ({
     const [phoneChanged, setPhoneChanged] = useState(false);
     const [checkingConfig, setCheckingConfig] = useState(false);
     const [needsConfiguration, setNeedsConfiguration] = useState<boolean | null>(null);
+    const [sipMode, setSipMode] = useState(() => /^(PJSIP|SIP)\//i.test(userConfig?.test_phone_number || ""));
 
     // Check telephony configuration when dialog opens
     useEffect(() => {
@@ -55,12 +55,9 @@ export const PhoneCallDialog = ({
 
             setCheckingConfig(true);
             try {
-                const accessToken = await getAccessToken();
-                const configResponse = await getTelephonyConfigurationApiV1OrganizationsTelephonyConfigGet({
-                    headers: { 'Authorization': `Bearer ${accessToken}` },
-                });
+                const configResponse = await getTelephonyConfigurationApiV1OrganizationsTelephonyConfigGet({});
 
-                if (configResponse.error || (!configResponse.data?.twilio && !configResponse.data?.vonage && !configResponse.data?.vobiz && !configResponse.data?.cloudonix)) {
+                if (configResponse.error || (!configResponse.data?.twilio && !configResponse.data?.vonage && !configResponse.data?.vobiz && !configResponse.data?.cloudonix && !configResponse.data?.ari)) {
                     setNeedsConfiguration(true);
                 } else {
                     setNeedsConfiguration(false);
@@ -74,7 +71,7 @@ export const PhoneCallDialog = ({
         };
 
         checkConfig();
-    }, [open, getAccessToken]);
+    }, [open]);
 
     // Reset state when dialog closes
     useEffect(() => {
@@ -89,7 +86,9 @@ export const PhoneCallDialog = ({
     // Keep phoneNumber in sync with userConfig when dialog opens
     useEffect(() => {
         if (open) {
-            setPhoneNumber(userConfig?.test_phone_number || "");
+            const saved = userConfig?.test_phone_number || "";
+            setPhoneNumber(saved);
+            setSipMode(/^(PJSIP|SIP)\//i.test(saved));
             setPhoneChanged(false);
             setCallError(null);
             setCallSuccessMsg(null);
@@ -115,7 +114,6 @@ export const PhoneCallDialog = ({
         setCallSuccessMsg(null);
         try {
             if (!user || !userConfig) return;
-            const accessToken = await getAccessToken();
 
             // Save phone number if it has changed
             if (phoneChanged) {
@@ -128,7 +126,6 @@ export const PhoneCallDialog = ({
                     workflow_id: workflowId,
                     phone_number: phoneNumber
                 },
-                headers: { 'Authorization': `Bearer ${accessToken}` },
             });
 
             if (response.error) {
@@ -189,14 +186,29 @@ export const PhoneCallDialog = ({
             <DialogHeader>
                 <DialogTitle>Phone Call</DialogTitle>
                 <DialogDescription>
-                    Enter the phone number to call. The number will be saved automatically.
+                    Enter the phone number or SIP endpoint to call. The number will be saved automatically.
                 </DialogDescription>
             </DialogHeader>
-            <PhoneInput
-                defaultCountry="in"
-                value={phoneNumber}
-                onChange={handlePhoneInputChange}
-            />
+            {sipMode ? (
+                <Input
+                    value={phoneNumber}
+                    onChange={(e) => handlePhoneInputChange(e.target.value)}
+                    placeholder="PJSIP/1234 or SIP/1234"
+                />
+            ) : (
+                <PhoneInput
+                    defaultCountry="in"
+                    value={phoneNumber}
+                    onChange={handlePhoneInputChange}
+                />
+            )}
+            <button
+                type="button"
+                className="text-xs text-muted-foreground hover:text-foreground underline"
+                onClick={() => { setSipMode(!sipMode); setPhoneNumber(""); setPhoneChanged(true); }}
+            >
+                {sipMode ? "Use phone number instead" : "Use SIP endpoint instead"}
+            </button>
             <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button
                     variant="outline"
@@ -219,9 +231,14 @@ export const PhoneCallDialog = ({
                             {callLoading ? "Calling..." : "Start Call"}
                         </Button>
                     ) : (
-                        <Button onClick={() => onOpenChange(false)}>
-                            Close
-                        </Button>
+                        <>
+                            <Button variant="outline" onClick={() => { setCallSuccessMsg(null); setCallError(null); }}>
+                                Call Again
+                            </Button>
+                            <Button onClick={() => onOpenChange(false)}>
+                                Close
+                            </Button>
+                        </>
                     )}
                 </div>
             </DialogFooter>

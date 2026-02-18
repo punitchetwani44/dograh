@@ -19,6 +19,50 @@ export type ApiKeyStatusResponse = {
     status: Array<ApiKeyStatus>;
 };
 
+/**
+ * Request schema for Asterisk ARI configuration.
+ */
+export type AriConfigurationRequest = {
+    provider?: string;
+    /**
+     * ARI base URL (e.g., http://asterisk.example.com:8088)
+     */
+    ari_endpoint: string;
+    /**
+     * Stasis application name registered in Asterisk
+     */
+    app_name: string;
+    /**
+     * ARI user password
+     */
+    app_password: string;
+    /**
+     * websocket_client.conf connection name for externalMedia (e.g., dograh_staging)
+     */
+    ws_client_name?: string;
+    /**
+     * Workflow ID for inbound calls
+     */
+    inbound_workflow_id?: number | null;
+    /**
+     * List of SIP extensions/numbers for outbound calls (optional)
+     */
+    from_numbers?: Array<string>;
+};
+
+/**
+ * Response schema for ARI configuration with masked sensitive fields.
+ */
+export type AriConfigurationResponse = {
+    provider: string;
+    ari_endpoint: string;
+    app_name: string;
+    app_password: string;
+    ws_client_name?: string;
+    inbound_workflow_id?: number | null;
+    from_numbers: Array<string>;
+};
+
 export type AccessTokenResponse = {
     access_token: string | null;
     refresh_token: string | null;
@@ -80,6 +124,7 @@ export type CampaignResponse = {
     completed_at: string | null;
     retry_config: RetryConfigResponse;
     max_concurrency?: number | null;
+    schedule_config?: ScheduleConfigResponse | null;
 };
 
 /**
@@ -200,6 +245,7 @@ export type CreateCampaignRequest = {
     source_id: string;
     retry_config?: RetryConfigRequest | null;
     max_concurrency?: number | null;
+    schedule_config?: ScheduleConfigRequest | null;
 };
 
 /**
@@ -259,7 +305,9 @@ export type CreateToolRequest = {
         type?: 'http_api';
     } & HttpApiToolDefinition) | ({
         type?: 'end_call';
-    } & EndCallToolDefinition);
+    } & EndCallToolDefinition) | ({
+        type?: 'transfer_call';
+    } & TransferCallToolDefinition);
 };
 
 export type CreateWorkflowRequest = {
@@ -731,6 +779,18 @@ export type S3SignedUrlResponse = {
     expires_in: number;
 };
 
+export type ScheduleConfigRequest = {
+    enabled?: boolean;
+    timezone?: string;
+    slots: Array<TimeSlotRequest>;
+};
+
+export type ScheduleConfigResponse = {
+    enabled: boolean;
+    timezone: string;
+    slots: Array<TimeSlotResponse>;
+};
+
 export type ServiceKeyResponse = {
     name: string;
     id: number;
@@ -793,6 +853,7 @@ export type TelephonyConfigurationResponse = {
     vonage?: VonageConfigurationResponse | null;
     vobiz?: VobizConfigurationResponse | null;
     cloudonix?: CloudonixConfigurationResponse | null;
+    ari?: AriConfigurationResponse | null;
 };
 
 export type TestSessionResponse = {
@@ -813,6 +874,18 @@ export type TestSessionResponse = {
     created_at: string;
     started_at: string | null;
     completed_at: string | null;
+};
+
+export type TimeSlotRequest = {
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
+};
+
+export type TimeSlotResponse = {
+    day_of_week: number;
+    start_time: string;
+    end_time: string;
 };
 
 /**
@@ -855,6 +928,57 @@ export type ToolResponse = {
     created_at: string;
     updated_at: string | null;
     created_by?: CreatedByResponse | null;
+};
+
+/**
+ * Configuration for Transfer Call tools.
+ */
+export type TransferCallConfig = {
+    /**
+     * Phone number to transfer the call to (E.164 format, e.g., +1234567890)
+     */
+    destination: string;
+    /**
+     * Type of message to play before transfer
+     */
+    messageType?: 'none' | 'custom';
+    /**
+     * Custom message to play before transferring the call
+     */
+    customMessage?: string | null;
+    /**
+     * Maximum time in seconds to wait for destination to answer (5-120 seconds)
+     */
+    timeout?: number;
+};
+
+/**
+ * Request model for initiating a call transfer.
+ */
+export type TransferCallRequest = {
+    destination: string;
+    organization_id: number;
+    transfer_id: string;
+    conference_name: string;
+    timeout?: number | null;
+};
+
+/**
+ * Tool definition for Transfer Call tools.
+ */
+export type TransferCallToolDefinition = {
+    /**
+     * Schema version
+     */
+    schema_version?: number;
+    /**
+     * Tool type
+     */
+    type: 'transfer_call';
+    /**
+     * Transfer Call configuration
+     */
+    config: TransferCallConfig;
 };
 
 /**
@@ -915,6 +1039,13 @@ export type TwilioConfigurationResponse = {
     from_numbers: Array<string>;
 };
 
+export type UpdateCampaignRequest = {
+    name?: string | null;
+    retry_config?: RetryConfigRequest | null;
+    max_concurrency?: number | null;
+    schedule_config?: ScheduleConfigRequest | null;
+};
+
 /**
  * Request schema for updating a webhook credential.
  */
@@ -945,7 +1076,9 @@ export type UpdateToolRequest = {
         type?: 'http_api';
     } & HttpApiToolDefinition) | ({
         type?: 'end_call';
-    } & EndCallToolDefinition)) | null;
+    } & EndCallToolDefinition) | ({
+        type?: 'transfer_call';
+    } & TransferCallToolDefinition)) | null;
     status?: string | null;
 };
 
@@ -1521,6 +1654,62 @@ export type HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostErrors = {
 };
 
 export type HandleCloudonixCdrApiV1TelephonyCloudonixCdrPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type InitiateCallTransferApiV1TelephonyCallTransferPostData = {
+    body: TransferCallRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/telephony/call-transfer';
+};
+
+export type InitiateCallTransferApiV1TelephonyCallTransferPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InitiateCallTransferApiV1TelephonyCallTransferPostError = InitiateCallTransferApiV1TelephonyCallTransferPostErrors[keyof InitiateCallTransferApiV1TelephonyCallTransferPostErrors];
+
+export type InitiateCallTransferApiV1TelephonyCallTransferPostResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostData = {
+    body?: never;
+    path: {
+        transfer_id: string;
+    };
+    query?: never;
+    url: '/api/v1/telephony/transfer-result/{transfer_id}';
+};
+
+export type CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostError = CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostErrors[keyof CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostErrors];
+
+export type CompleteTransferFunctionCallApiV1TelephonyTransferResultTransferIdPostResponses = {
     /**
      * Successful Response
      */
@@ -2571,6 +2760,41 @@ export type GetCampaignApiV1CampaignCampaignIdGetResponses = {
 
 export type GetCampaignApiV1CampaignCampaignIdGetResponse = GetCampaignApiV1CampaignCampaignIdGetResponses[keyof GetCampaignApiV1CampaignCampaignIdGetResponses];
 
+export type UpdateCampaignApiV1CampaignCampaignIdPatchData = {
+    body: UpdateCampaignRequest;
+    headers?: {
+        authorization?: string | null;
+        'X-API-Key'?: string | null;
+    };
+    path: {
+        campaign_id: number;
+    };
+    query?: never;
+    url: '/api/v1/campaign/{campaign_id}';
+};
+
+export type UpdateCampaignApiV1CampaignCampaignIdPatchErrors = {
+    /**
+     * Not found
+     */
+    404: unknown;
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UpdateCampaignApiV1CampaignCampaignIdPatchError = UpdateCampaignApiV1CampaignCampaignIdPatchErrors[keyof UpdateCampaignApiV1CampaignCampaignIdPatchErrors];
+
+export type UpdateCampaignApiV1CampaignCampaignIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: CampaignResponse;
+};
+
+export type UpdateCampaignApiV1CampaignCampaignIdPatchResponse = UpdateCampaignApiV1CampaignCampaignIdPatchResponses[keyof UpdateCampaignApiV1CampaignCampaignIdPatchResponses];
+
 export type StartCampaignApiV1CampaignCampaignIdStartPostData = {
     body?: never;
     headers?: {
@@ -3350,7 +3574,7 @@ export type GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetRespons
 export type GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetResponse = GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetResponses[keyof GetTelephonyConfigurationApiV1OrganizationsTelephonyConfigGetResponses];
 
 export type SaveTelephonyConfigurationApiV1OrganizationsTelephonyConfigPostData = {
-    body: TwilioConfigurationRequest | VonageConfigurationRequest | VobizConfigurationRequest | CloudonixConfigurationRequest;
+    body: TwilioConfigurationRequest | VonageConfigurationRequest | VobizConfigurationRequest | CloudonixConfigurationRequest | AriConfigurationRequest;
     headers?: {
         authorization?: string | null;
         'X-API-Key'?: string | null;

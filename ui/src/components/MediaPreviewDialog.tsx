@@ -14,11 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { downloadFile, getSignedUrl } from '@/lib/files';
 
-interface MediaPreviewDialogProps {
-    accessToken: string | null;
-}
-
-export function MediaPreviewDialog({ accessToken }: MediaPreviewDialogProps) {
+export function MediaPreviewDialog() {
     const [isOpen, setIsOpen] = useState(false);
     const [audioSignedUrl, setAudioSignedUrl] = useState<string | null>(null);
     const [transcriptContent, setTranscriptContent] = useState<string | null>(null);
@@ -29,7 +25,7 @@ export function MediaPreviewDialog({ accessToken }: MediaPreviewDialogProps) {
 
     const openPreview = useCallback(
         async (recordingUrl: string | null, transcriptUrl: string | null, runId: number) => {
-            if (!accessToken || (!recordingUrl && !transcriptUrl)) return;
+            if (!recordingUrl && !transcriptUrl) return;
             setMediaLoading(true);
             setAudioSignedUrl(null);
             setTranscriptContent(null);
@@ -39,8 +35,8 @@ export function MediaPreviewDialog({ accessToken }: MediaPreviewDialogProps) {
             setIsOpen(true);
 
             const [audioResult, transcriptResult] = await Promise.all([
-                recordingUrl ? getSignedUrl(recordingUrl, accessToken) : null,
-                transcriptUrl ? getSignedUrl(transcriptUrl, accessToken, true) : null,
+                recordingUrl ? getSignedUrl(recordingUrl) : null,
+                transcriptUrl ? getSignedUrl(transcriptUrl, true) : null,
             ]);
 
             if (audioResult) {
@@ -59,7 +55,7 @@ export function MediaPreviewDialog({ accessToken }: MediaPreviewDialogProps) {
 
             setMediaLoading(false);
         },
-        [accessToken],
+        [],
     );
 
     return {
@@ -102,13 +98,13 @@ export function MediaPreviewDialog({ accessToken }: MediaPreviewDialogProps) {
                             <Button variant="secondary">Close</Button>
                         </DialogClose>
                         <div className="flex gap-2">
-                            {recordingKey && accessToken && (
-                                <Button variant="outline" onClick={() => downloadFile(recordingKey, accessToken)}>
+                            {recordingKey && (
+                                <Button variant="outline" onClick={() => downloadFile(recordingKey)}>
                                     Download Recording
                                 </Button>
                             )}
-                            {transcriptKey && accessToken && (
-                                <Button variant="outline" onClick={() => downloadFile(transcriptKey, accessToken)}>
+                            {transcriptKey && (
+                                <Button variant="outline" onClick={() => downloadFile(transcriptKey)}>
                                     Download Transcript
                                 </Button>
                             )}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { getWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGet } from "@/client/sdk.gen";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/lib/auth";
 
 import {
     ApiKeyErrorDialog,
@@ -14,14 +15,22 @@ import {
 } from "./components";
 import { useWebSocketRTC } from "./hooks";
 
-const BrowserCall = ({ workflowId, workflowRunId, accessToken, initialContextVariables }: {
+const BrowserCall = ({ workflowId, workflowRunId, initialContextVariables }: {
     workflowId: number,
     workflowRunId: number,
-    accessToken: string | null,
     initialContextVariables?: Record<string, string> | null
 }) => {
     const router = useRouter();
+    const auth = useAuth();
+    const [accessToken, setAccessToken] = useState<string | null>(null);
     const [checkingForRecording, setCheckingForRecording] = useState(false);
+
+    // Get access token for WebSocket connection (non-SDK usage)
+    useEffect(() => {
+        if (auth.isAuthenticated && !auth.loading) {
+            auth.getAccessToken().then(setAccessToken);
+        }
+    }, [auth]);
 
     const {
         audioRef,
@@ -47,7 +56,7 @@ const BrowserCall = ({ workflowId, workflowRunId, accessToken, initialContextVar
 
     // Poll for recording availability after call ends
     useEffect(() => {
-        if (!isCompleted || !accessToken) return;
+        if (!isCompleted || !auth.isAuthenticated) return;
 
         setCheckingForRecording(true);
         const intervalId = setInterval(async () => {
@@ -56,9 +65,6 @@ const BrowserCall = ({ workflowId, workflowRunId, accessToken, initialContextVar
                     path: {
                         workflow_id: workflowId,
                         run_id: workflowRunId,
-                    },
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
                     },
                 });
 
@@ -83,7 +89,7 @@ const BrowserCall = ({ workflowId, workflowRunId, accessToken, initialContextVar
             clearInterval(intervalId);
             clearTimeout(timeoutId);
         };
-    }, [isCompleted, accessToken, workflowId, workflowRunId]);
+    }, [isCompleted, auth.isAuthenticated, workflowId, workflowRunId]);
 
     const navigateToApiKeys = () => {
         router.push('/api-keys');

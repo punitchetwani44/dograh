@@ -30,7 +30,6 @@ interface WorkflowEditorHeaderProps {
     workflowId: number;
     saveWorkflow: (updateWorkflowDefinition?: boolean) => Promise<void>;
     user: { id: string; email?: string };
-    getAccessToken: () => Promise<string>;
     onPhoneCallClick: () => void;
 }
 

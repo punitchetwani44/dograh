@@ -10,7 +10,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { useUserConfig } from "@/context/UserConfigContext";
 import { cn } from "@/lib/utils";
 
 // Providers that have MPS voice endpoints
@@ -30,7 +29,6 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
     onChange,
     className,
 }) => {
-    const { accessToken } = useUserConfig();
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [isManualInput, setIsManualInput] = useState(false);
@@ -60,7 +58,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
 
     const fetchVoices = useCallback(async () => {
         const providerKey = getProviderKey(provider);
-        if (!providerKey || !accessToken) {
+        if (!providerKey) {
             setVoices([]);
             return;
         }
@@ -71,9 +69,6 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
         try {
             const response = await getVoicesApiV1UserConfigurationsVoicesProviderGet({
                 path: { provider: providerKey },
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                },
             });
 
             if (response.data?.voices) {
@@ -86,7 +81,7 @@ export const VoiceSelector: React.FC<VoiceSelectorProps> = ({
         } finally {
             setIsLoading(false);
         }
-    }, [provider, getProviderKey, accessToken]);
+    }, [provider, getProviderKey]);
 
     useEffect(() => {
         if (provider) {

@@ -1,5 +1,4 @@
-export { useAuth } from './hooks/useAuth';
-export { AuthProvider } from './providers/AuthProvider';
+export { AuthProvider, useAuth } from './providers/AuthProvider';
 export type {
   AuthProvider as AuthProviderType,
   AuthToken,

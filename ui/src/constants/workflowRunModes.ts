@@ -7,9 +7,9 @@ export const WORKFLOW_RUN_MODES = {
     VONAGE: 'vonage',
     VOBIZ: 'vobiz',
     CLOUDONIX: 'cloudonix',
-    STASIS: 'stasis',
     WEBRTC: 'webrtc',
     SMALL_WEBRTC: 'smallwebrtc',
+    ARI: 'ari'
 } as const;
 
 export type WorkflowRunMode = typeof WORKFLOW_RUN_MODES[keyof typeof WORKFLOW_RUN_MODES];

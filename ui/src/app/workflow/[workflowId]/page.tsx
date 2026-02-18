@@ -19,7 +19,7 @@ export default function WorkflowDetailPage() {
     const [workflow, setWorkflow] = useState<WorkflowResponse | undefined>(undefined);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const { user, getAccessToken, redirectToLogin, loading: authLoading } = useAuth();
+    const { user, redirectToLogin, loading: authLoading } = useAuth();
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -32,13 +32,9 @@ export default function WorkflowDetailPage() {
         const fetchWorkflow = async () => {
             if (!user) return;
             try {
-                const accessToken = await getAccessToken();
                 const response = await getWorkflowApiV1WorkflowFetchWorkflowIdGet({
                     path: {
                         workflow_id: Number(params.workflowId)
-                    },
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
                     },
                 });
                 const workflow = response.data;
@@ -54,11 +50,9 @@ export default function WorkflowDetailPage() {
         if (user) {
             fetchWorkflow();
         }
-    }, [params.workflowId, user, getAccessToken]);
+    }, [params.workflowId, user]);
 
-    // Memoize user and getAccessToken to prevent unnecessary re-renders
     const stableUser = useMemo(() => user, [user]);
-    const stableGetAccessToken = useMemo(() => getAccessToken, [getAccessToken]);
 
     if (loading) {
         return (
@@ -89,7 +83,6 @@ export default function WorkflowDetailPage() {
                 initialTemplateContextVariables={workflow.template_context_variables as Record<string, string> || {}}
                 initialWorkflowConfigurations={(workflow.workflow_configurations as WorkflowConfigurations) || DEFAULT_WORKFLOW_CONFIGURATIONS}
                 user={stableUser}
-                getAccessToken={stableGetAccessToken}
             />
         ) : null;
     }

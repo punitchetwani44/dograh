@@ -58,10 +58,9 @@ interface RenderWorkflowProps {
     initialTemplateContextVariables?: Record<string, string>;
     initialWorkflowConfigurations?: WorkflowConfigurations;
     user: { id: string; email?: string };
-    getAccessToken: () => Promise<string>;
 }
 
-function RenderWorkflow({ initialWorkflowName, workflowId, initialFlow, initialTemplateContextVariables, initialWorkflowConfigurations, user, getAccessToken }: RenderWorkflowProps) {
+function RenderWorkflow({ initialWorkflowName, workflowId, initialFlow, initialTemplateContextVariables, initialWorkflowConfigurations, user }: RenderWorkflowProps) {
     const [isContextVarsDialogOpen, setIsContextVarsDialogOpen] = useState(false);
     const [isConfigurationsDialogOpen, setIsConfigurationsDialogOpen] = useState(false);
     const [isDictionaryDialogOpen, setIsDictionaryDialogOpen] = useState(false);
@@ -100,18 +99,14 @@ function RenderWorkflow({ initialWorkflowName, workflowId, initialFlow, initialT
         initialTemplateContextVariables,
         initialWorkflowConfigurations,
         user,
-        getAccessToken
     });
 
     // Fetch documents and tools once for the entire workflow
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const accessToken = await getAccessToken();
-
                 // Fetch documents
                 const documentsResponse = await listDocumentsApiV1KnowledgeBaseDocumentsGet({
-                    headers: { Authorization: `Bearer ${accessToken}` },
                     query: { limit: 100 },
                 });
                 if (documentsResponse.data) {
@@ -119,9 +114,7 @@ function RenderWorkflow({ initialWorkflowName, workflowId, initialFlow, initialT
                 }
 
                 // Fetch tools
-                const toolsResponse = await listToolsApiV1ToolsGet({
-                    headers: { Authorization: `Bearer ${accessToken}` },
-                });
+                const toolsResponse = await listToolsApiV1ToolsGet({});
                 if (toolsResponse.data) {
                     setTools(toolsResponse.data);
                 }
@@ -131,7 +124,7 @@ function RenderWorkflow({ initialWorkflowName, workflowId, initialFlow, initialT
         };
 
         fetchData();
-    }, [getAccessToken]);
+    }, []);
 
     // Memoize defaultEdgeOptions to prevent unnecessary re-renders
     const defaultEdgeOptions = useMemo(() => ({
@@ -159,7 +152,6 @@ function RenderWorkflow({ initialWorkflowName, workflowId, initialFlow, initialT
                     workflowId={workflowId}
                     saveWorkflow={saveWorkflow}
                     user={user}
-                    getAccessToken={getAccessToken}
                     onPhoneCallClick={() => setIsPhoneCallDialogOpen(true)}
                 />
 
@@ -388,14 +380,12 @@ function RenderWorkflow({ initialWorkflowName, workflowId, initialFlow, initialT
                     onOpenChange={setIsEmbedDialogOpen}
                     workflowId={workflowId}
                     workflowName={workflowName}
-                    getAccessToken={getAccessToken}
                 />
 
                 <PhoneCallDialog
                     open={isPhoneCallDialogOpen}
                     onOpenChange={setIsPhoneCallDialogOpen}
                     workflowId={workflowId}
-                    getAccessToken={getAccessToken}
                     user={user}
                 />
             </div>
@@ -409,8 +399,7 @@ export default React.memo(RenderWorkflow, (prevProps, nextProps) => {
     return (
         prevProps.workflowId === nextProps.workflowId &&
         prevProps.initialWorkflowName === nextProps.initialWorkflowName &&
-        prevProps.user.id === nextProps.user.id &&
-        prevProps.getAccessToken === nextProps.getAccessToken
+        prevProps.user.id === nextProps.user.id
         // Note: We intentionally don't compare initialFlow, initialTemplateContextVariables,
         // or initialWorkflowConfigurations because they're only used for initialization
     );

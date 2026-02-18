@@ -33,7 +33,7 @@ export function CreateTestSessionButton() {
     const router = useRouter();
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
-    const { user, getAccessToken } = useAuth();
+    const { user } = useAuth();
     const [formData, setFormData] = useState({
         name: '',
         description: '',
@@ -49,7 +49,6 @@ export function CreateTestSessionButton() {
 
         try {
             if (!user) return;
-            const accessToken = await getAccessToken();
             const response = await createTestSessionApiV1LooptalkTestSessionsPost({
                 body: {
                     name: formData.name,
@@ -60,9 +59,6 @@ export function CreateTestSessionButton() {
                         description: formData.description,
                         concurrent_pairs: formData.test_type === 'load_test' ? formData.concurrent_pairs : undefined
                     }
-                },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
                 },
             });
 

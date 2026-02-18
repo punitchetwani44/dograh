@@ -16,8 +16,6 @@ async function WorkflowList() {
     const authProvider = getServerAuthProvider();
     const accessToken = await getServerAccessToken();
 
-    logger.debug(`In WorkflowList, authProvider: ${authProvider}, accessToken: ${accessToken}`);
-
     if (!accessToken) {
         // If no token, user needs to sign in
         const { redirect } = await import('next/navigation');

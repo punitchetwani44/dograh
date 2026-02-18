@@ -4,6 +4,7 @@ import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, u
 
 import { getUserConfigurationsApiV1UserConfigurationsUserGet, updateUserConfigurationsApiV1UserConfigurationsUserPut } from '@/client/sdk.gen';
 import type { UserConfigurationRequestResponseSchema } from '@/client/types.gen';
+import { setupAuthInterceptor } from '@/lib/apiClient';
 import type { AuthUser } from '@/lib/auth';
 import { useAuth } from '@/lib/auth';
 
@@ -43,7 +44,6 @@ interface UserConfigContextType {
     error: Error | null;
     refreshConfig: () => Promise<void>;
     permissions: TeamPermission[];
-    accessToken: string | null;
     user: AuthUser | null;
     organizationPricing: OrganizationPricing | null;
 }
@@ -54,7 +54,6 @@ export function UserConfigProvider({ children }: { children: ReactNode }) {
     const [userConfig, setUserConfig] = useState<UserConfigurationRequestResponseSchema | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
-    const [accessToken, setAccessToken] = useState<string | null>(null);
     const [organizationPricing, setOrganizationPricing] = useState<OrganizationPricing | null>(null);
     const [permissions, setPermissions] = useState<TeamPermission[]>([]);
 
@@ -67,6 +66,13 @@ export function UserConfigProvider({ children }: { children: ReactNode }) {
     // Track initialization
     const hasFetchedConfig = useRef(false);
     const hasFetchedPermissions = useRef(false);
+
+    // Register the auth interceptor synchronously during render (not in useEffect)
+    // so it's in place before any child effects fire API calls.
+    // setupAuthInterceptor is idempotent — safe for strict mode double-renders.
+    if (!auth.loading && auth.isAuthenticated) {
+        setupAuthInterceptor(auth.getAccessToken);
+    }
 
     // Fetch permissions once when auth is ready
     useEffect(() => {
@@ -107,14 +113,7 @@ export function UserConfigProvider({ children }: { children: ReactNode }) {
         const fetchUserConfig = async () => {
             setLoading(true);
             try {
-                const token = await authRef.current.getAccessToken();
-                setAccessToken(token);
-
-                const response = await getUserConfigurationsApiV1UserConfigurationsUserGet({
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
+                const response = await getUserConfigurationsApiV1UserConfigurationsUserGet();
 
                 if (response.data) {
                     setUserConfig(response.data);
@@ -131,7 +130,6 @@ export function UserConfigProvider({ children }: { children: ReactNode }) {
                 setError(null);
             } catch (err) {
                 setError(err instanceof Error ? err : new Error('Failed to fetch user configuration'));
-                setAccessToken(null);
             } finally {
                 setLoading(false);
             }
@@ -141,13 +139,12 @@ export function UserConfigProvider({ children }: { children: ReactNode }) {
     }, [auth.loading, auth.isAuthenticated]);
 
     const saveUserConfig = useCallback(async (userConfigRequest: SaveUserConfigFunctionParams) => {
-        if (!accessToken) throw new Error('No authentication token available');
+        if (!authRef.current.isAuthenticated) throw new Error('No authentication available');
         const response = await updateUserConfigurationsApiV1UserConfigurationsUserPut({
             body: {
                 ...userConfig,
                 ...userConfigRequest
             } as UserConfigurationRequestResponseSchema,
-            headers: { 'Authorization': `Bearer ${accessToken}` },
         });
         if (response.error) {
             let msg = 'Failed to save user configuration';
@@ -168,7 +165,7 @@ export function UserConfigProvider({ children }: { children: ReactNode }) {
                 billing_enabled: response.data.organization_pricing.billing_enabled as boolean || false
             });
         }
-    }, [accessToken, userConfig]);
+    }, [userConfig]);
 
     const refreshConfig = useCallback(async () => {
         const currentAuth = authRef.current;
@@ -176,14 +173,7 @@ export function UserConfigProvider({ children }: { children: ReactNode }) {
 
         setLoading(true);
         try {
-            const token = await currentAuth.getAccessToken();
-            setAccessToken(token);
-
-            const response = await getUserConfigurationsApiV1UserConfigurationsUserGet({
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
+            const response = await getUserConfigurationsApiV1UserConfigurationsUserGet();
 
             if (response.data) {
                 setUserConfig(response.data);
@@ -212,7 +202,6 @@ export function UserConfigProvider({ children }: { children: ReactNode }) {
                 error,
                 refreshConfig,
                 permissions,
-                accessToken,
                 user: auth.user,
                 organizationPricing,
             }}

@@ -28,44 +28,47 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   const isWorkflowEditor = /^\/workflow\/\d+/.test(pathname);
   const isSuperadmin = pathname.startsWith("/superadmin");
 
-  // If no sidebar needed, just return children
-  if (!shouldShowSidebar) {
-    return <>{children}</>;
-  }
-
+  // Always render SidebarProvider to keep the component tree shape consistent
+  // across route changes (avoids React hooks ordering violations during navigation).
   return (
     <SidebarProvider defaultOpen={!isWorkflowEditor && !isSuperadmin}>
-      <div className="flex min-h-screen w-full">
-        <AppSidebar />
-        <SidebarInset className="flex-1">
-          {/* Optional header area for specific pages */}
-          {headerActions && (
-            <header className="sticky top-0 z-50 w-full border-b bg-background">
-              <div className="container mx-auto px-4 py-4">
-                <div className="flex items-center justify-center">
-                  {headerActions}
+      {shouldShowSidebar ? (
+        <div className="flex min-h-screen w-full">
+          <AppSidebar />
+          <SidebarInset className="flex-1">
+            {/* Optional header area for specific pages */}
+            {headerActions && (
+              <header className="sticky top-0 z-50 w-full border-b bg-background">
+                <div className="container mx-auto px-4 py-4">
+                  <div className="flex items-center justify-center">
+                    {headerActions}
+                  </div>
+                </div>
+              </header>
+            )}
+
+            {/* Optional sticky tabs */}
+            {stickyTabs && (
+              <div className="sticky top-0 z-40 bg-[#2a2e39] border-b border-gray-700">
+                <div className="container mx-auto px-4">
+                  <div className="flex items-center justify-center py-2">
+                    {stickyTabs}
+                  </div>
                 </div>
               </div>
-            </header>
-          )}
+            )}
 
-          {/* Optional sticky tabs */}
-          {stickyTabs && (
-            <div className="sticky top-0 z-40 bg-[#2a2e39] border-b border-gray-700">
-              <div className="container mx-auto px-4">
-                <div className="flex items-center justify-center py-2">
-                  {stickyTabs}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Main content area */}
-          <main className="flex-1">
-            {children}
-          </main>
-        </SidebarInset>
-      </div>
+            {/* Main content area */}
+            <main className="flex-1">
+              {children}
+            </main>
+          </SidebarInset>
+        </div>
+      ) : (
+        <div className="flex-1 w-full">
+          {children}
+        </div>
+      )}
     </SidebarProvider>
   );
 };

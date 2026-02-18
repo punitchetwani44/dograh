@@ -1,4 +1,5 @@
 import type { CreateClientConfig } from '@/client/client.gen';
+import { client } from '@/client/client.gen';
 
 export const createClientConfig: CreateClientConfig = (config) => {
     // Use different URLs for server-side vs client-side
@@ -18,3 +19,27 @@ export const createClientConfig: CreateClientConfig = (config) => {
         baseUrl,
     };
 };
+
+let interceptorRegistered = false;
+
+/**
+ * Register a request interceptor that attaches a fresh access token
+ * to every outgoing SDK request. Idempotent — safe for React strict mode.
+ */
+export function setupAuthInterceptor(getAccessToken: () => Promise<string>) {
+    if (interceptorRegistered) return;
+    interceptorRegistered = true;
+
+    client.interceptors.request.use(async (request) => {
+        if (request.headers.get('Authorization')) {
+            return request;
+        }
+        try {
+            const token = await getAccessToken();
+            request.headers.set('Authorization', `Bearer ${token}`);
+        } catch {
+            // If token retrieval fails, let the request proceed without auth
+        }
+        return request;
+    });
+}

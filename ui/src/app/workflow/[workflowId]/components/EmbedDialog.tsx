@@ -1,7 +1,6 @@
 import { Check, Copy, Loader2, Plus, Rocket, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
-import { client } from "@/client/client.gen";
 import {
     createOrUpdateEmbedTokenApiV1WorkflowWorkflowIdEmbedTokenPost,
     deactivateEmbedTokenApiV1WorkflowWorkflowIdEmbedTokenDelete,
@@ -32,7 +31,6 @@ interface EmbedDialogProps {
     onOpenChange: (open: boolean) => void;
     workflowId: number;
     workflowName: string;
-    getAccessToken: () => Promise<string>;
 }
 
 interface EmbedToken {
@@ -53,7 +51,6 @@ export function EmbedDialog({
     onOpenChange,
     workflowId,
     workflowName,
-    getAccessToken,
 }: EmbedDialogProps) {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -72,12 +69,6 @@ export function EmbedDialog({
     const loadEmbedToken = useCallback(async () => {
         setLoading(true);
         try {
-            const token = await getAccessToken();
-            client.setConfig({
-                baseUrl: window.location.origin.replace(/:\d+$/, ':8000'),
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
             const response = await getEmbedTokenApiV1WorkflowWorkflowIdEmbedTokenGet({
                 path: { workflow_id: workflowId },
             });
@@ -105,7 +96,7 @@ export function EmbedDialog({
         } finally {
             setLoading(false);
         }
-    }, [workflowId, getAccessToken]);
+    }, [workflowId]);
 
     useEffect(() => {
         if (open) {
@@ -116,12 +107,6 @@ export function EmbedDialog({
     const handleSave = async () => {
         setSaving(true);
         try {
-            const token = await getAccessToken();
-            client.setConfig({
-                baseUrl: window.location.origin.replace(/:\d+$/, ':8000'),
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
             if (!isEnabled && embedToken) {
                 // Deactivate token
                 await deactivateEmbedTokenApiV1WorkflowWorkflowIdEmbedTokenDelete({

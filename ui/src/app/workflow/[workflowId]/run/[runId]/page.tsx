@@ -74,7 +74,6 @@ export default function WorkflowRunPage() {
     const [isLoading, setIsLoading] = useState(true);
     const auth = useAuth();
     const [workflowRun, setWorkflowRun] = useState<WorkflowRunResponse | null>(null);
-    const [accessToken, setAccessToken] = useState<string | null>(null);
     const { hasSeenTooltip, markTooltipSeen } = useOnboarding();
     const customizeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -85,30 +84,19 @@ export default function WorkflowRunPage() {
         }
     }, [auth]);
 
-    // Get access token
-    useEffect(() => {
-        if (auth.isAuthenticated && !auth.loading) {
-            auth.getAccessToken().then(setAccessToken);
-        }
-    }, [auth]);
-
-    const { openPreview, dialog } = MediaPreviewDialog({ accessToken });
+    const { openPreview, dialog } = MediaPreviewDialog();
 
     useEffect(() => {
         const fetchWorkflowRun = async () => {
             if (!auth.isAuthenticated || auth.loading) return;
 
             setIsLoading(true);
-            const token = await auth.getAccessToken();
             const workflowId = params.workflowId;
             const runId = params.runId;
             const response = await getWorkflowRunApiV1WorkflowWorkflowIdRunsRunIdGet({
                 path: {
                     workflow_id: Number(workflowId),
                     run_id: Number(runId),
-                },
-                headers: {
-                    'Authorization': `Bearer ${token}`,
                 },
             });
             setIsLoading(false);
@@ -197,8 +185,8 @@ export default function WorkflowRunPage() {
                                 <div className="flex items-center gap-2 border-l border-border pl-4">
                                     <span className="text-sm text-muted-foreground">Download:</span>
                                     <Button
-                                        onClick={() => downloadFile(workflowRun?.transcript_url, accessToken!)}
-                                        disabled={!workflowRun?.transcript_url || !accessToken}
+                                        onClick={() => downloadFile(workflowRun?.transcript_url)}
+                                        disabled={!workflowRun?.transcript_url || !auth.isAuthenticated}
                                         size="sm"
                                         className="gap-2"
                                     >
@@ -206,8 +194,8 @@ export default function WorkflowRunPage() {
                                         Transcript
                                     </Button>
                                     <Button
-                                        onClick={() => downloadFile(workflowRun?.recording_url, accessToken!)}
-                                        disabled={!workflowRun?.recording_url || !accessToken}
+                                        onClick={() => downloadFile(workflowRun?.recording_url)}
+                                        disabled={!workflowRun?.recording_url || !auth.isAuthenticated}
                                         size="sm"
                                         className="gap-2"
                                     >
@@ -265,7 +253,6 @@ export default function WorkflowRunPage() {
                 <BrowserCall
                     workflowId={Number(params.workflowId)}
                     workflowRunId={Number(params.runId)}
-                    accessToken={accessToken}
                     initialContextVariables={
                         workflowRun?.initial_context
                             ? Object.fromEntries(

@@ -321,8 +321,11 @@ class WorkflowRunClient(BaseDBClient):
         state: str | None = None,
     ) -> WorkflowRunModel:
         async with self.async_session() as session:
+            # Use SELECT FOR UPDATE to lock the row during the update
             result = await session.execute(
-                select(WorkflowRunModel).where(WorkflowRunModel.id == run_id)
+                select(WorkflowRunModel)
+                .where(WorkflowRunModel.id == run_id)
+                .with_for_update()
             )
             run = result.scalars().first()
             if not run:

@@ -15,8 +15,6 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { useUserConfig } from '@/context/UserConfigContext';
-
 interface Workflow {
     id: number;
     name: string;
@@ -32,7 +30,6 @@ interface WorkflowTableProps {
 
 export function WorkflowTable({ workflows, showArchived }: WorkflowTableProps) {
     const router = useRouter();
-    const { accessToken } = useUserConfig();
     const [isPending, startTransition] = useTransition();
     const [loadingWorkflowId, setLoadingWorkflowId] = useState<number | null>(null);
 
@@ -41,11 +38,6 @@ export function WorkflowTable({ workflows, showArchived }: WorkflowTableProps) {
     };
 
     const handleArchiveToggle = async (id: number, currentStatus: string) => {
-        if (!accessToken) {
-            toast.error('Authentication required');
-            return;
-        }
-
         const newStatus = currentStatus === 'active' ? 'archived' : 'active';
         const action = currentStatus === 'active' ? 'Archive' : 'Restore';
 
@@ -58,9 +50,6 @@ export function WorkflowTable({ workflows, showArchived }: WorkflowTableProps) {
                 },
                 body: {
                     status: newStatus,
-                },
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
                 },
             });
 
