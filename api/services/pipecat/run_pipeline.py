@@ -619,7 +619,7 @@ async def _run_pipeline(
         user_turn_strategies=user_turn_strategies,
         user_mute_strategies=user_mute_strategies,
         user_idle_timeout=max_user_idle_timeout,
-        vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.3)),
+        vad_analyzer=SileroVADAnalyzer(params=VADParams(stop_secs=0.2)),
     )
     context_aggregator = LLMContextAggregatorPair(
         context, assistant_params=assistant_params, user_params=user_params
