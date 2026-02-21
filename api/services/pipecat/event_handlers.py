@@ -7,7 +7,6 @@ from api.services.pipecat.audio_config import AudioConfig
 from api.services.pipecat.in_memory_buffers import (
     InMemoryAudioBuffer,
     InMemoryLogsBuffer,
-    InMemoryTranscriptBuffer,
 )
 from api.services.pipecat.pipeline_metrics_aggregator import PipelineMetricsAggregator
 from api.services.workflow.pipecat_engine import PipecatEngine
@@ -32,7 +31,7 @@ def register_event_handlers(
     """Register all event handlers for transport and task events.
 
     Returns:
-        Tuple of (in_memory_audio_buffer, in_memory_transcript_buffer) for use by other handlers.
+        in_memory_audio_buffer for use by other handlers.
     """
     # Initialize in-memory buffers with proper audio configuration
     sample_rate = audio_config.pipeline_sample_rate if audio_config else 16000
@@ -48,8 +47,6 @@ def register_event_handlers(
         sample_rate=sample_rate,
         num_channels=num_channels,
     )
-    in_memory_transcript_buffer = InMemoryTranscriptBuffer(workflow_run_id)
-
     # Track both events to ensure LLM is only triggered after both occur
     ready_state = {
         "pipeline_started": False,
@@ -123,23 +120,22 @@ def register_event_handlers(
         gathered_context = {**gathered_context, **workflow_run.gathered_context}
 
         # Set user_speech call tag
-        if in_memory_transcript_buffer:
-            call_tags = gathered_context.get("call_tags", [])
+        call_tags = gathered_context.get("call_tags", [])
 
-            try:
-                has_user_speech = in_memory_transcript_buffer.contains_user_speech()
-            except Exception:
-                has_user_speech = False
+        try:
+            has_user_speech = in_memory_logs_buffer.contains_user_speech()
+        except Exception:
+            has_user_speech = False
 
-            if has_user_speech and "user_speech" not in call_tags:
-                call_tags.append("user_speech")
+        if has_user_speech and "user_speech" not in call_tags:
+            call_tags.append("user_speech")
 
-            # Append any keys from gathered_context that start with 'tag_' to call_tags
-            for key in gathered_context:
-                if key.startswith("tag_") and key not in call_tags:
-                    call_tags.append(gathered_context[key])
+        # Append any keys from gathered_context that start with 'tag_' to call_tags
+        for key in gathered_context:
+            if key.startswith("tag_") and key not in call_tags:
+                call_tags.append(gathered_context[key])
 
-            gathered_context["call_tags"] = call_tags
+        gathered_context["call_tags"] = call_tags
 
         # Clean up engine resources (including voicemail detector)
         await engine.cleanup()
@@ -213,12 +209,9 @@ def register_event_handlers(
             else:
                 logger.debug("Audio buffer is empty, skipping upload")
 
-            if not in_memory_transcript_buffer.is_empty:
-                transcript_temp_path = (
-                    await in_memory_transcript_buffer.write_to_temp_file()
-                )
-            else:
-                logger.debug("Transcript buffer is empty, skipping upload")
+            transcript_temp_path = in_memory_logs_buffer.write_transcript_to_temp_file()
+            if not transcript_temp_path:
+                logger.debug("No transcript events in logs buffer, skipping upload")
 
         except Exception as e:
             logger.error(f"Error preparing buffers for S3 upload: {e}", exc_info=True)
@@ -233,8 +226,8 @@ def register_event_handlers(
             transcript_temp_path,
         )
 
-    # Return the buffers so they can be passed to other handlers
-    return in_memory_audio_buffer, in_memory_transcript_buffer
+    # Return the buffer so it can be passed to other handlers
+    return in_memory_audio_buffer
 
 
 def register_audio_data_handler(
@@ -256,28 +249,3 @@ def register_audio_data_handler(
         except MemoryError as e:
             logger.error(f"Memory buffer full: {e}")
             # Could implement overflow to disk here if needed
-
-
-def register_transcript_handlers(
-    user_aggregator,
-    assistant_aggregator,
-    workflow_run_id,
-    in_memory_buffer: InMemoryTranscriptBuffer,
-):
-    """Register event handlers for transcript updates on context aggregators.
-
-    Uses the on_user_turn_stopped and on_assistant_turn_stopped events to capture
-    transcripts as turns complete, following the event-based pattern.
-    """
-
-    @user_aggregator.event_handler("on_user_turn_stopped")
-    async def on_user_turn_stopped(aggregator, strategy, message):
-        timestamp = f"[{message.timestamp}] " if message.timestamp else ""
-        line = f"{timestamp}user: {message.content}\n"
-        await in_memory_buffer.append(line)
-
-    @assistant_aggregator.event_handler("on_assistant_turn_stopped")
-    async def on_assistant_turn_stopped(aggregator, message):
-        timestamp = f"[{message.timestamp}] " if message.timestamp else ""
-        line = f"{timestamp}assistant: {message.content}\n"
-        await in_memory_buffer.append(line)

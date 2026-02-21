@@ -51,6 +51,19 @@ def tool_to_function_schema(tool: Any) -> Dict[str, Any]:
         if param_required:
             required.append(param_name)
 
+    # If this is an end_call tool with endCallReason enabled, add a required 'reason' parameter
+    if definition.get("type") == "end_call" and config.get("endCallReason", False):
+        default_description = (
+            "The reason for ending the call (e.g., 'voicemail_detected', "
+            "'issue_resolved', 'customer_requested')"
+        )
+        properties["reason"] = {
+            "type": "string",
+            "description": config.get("endCallReasonDescription")
+            or default_description,
+        }
+        required.append("reason")
+
     # Sanitize tool name for function name (lowercase, underscores only)
     function_name = re.sub(r"[^a-z0-9_]", "_", tool.name.lower())
     # Remove consecutive underscores and trim

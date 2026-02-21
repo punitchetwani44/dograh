@@ -231,6 +231,20 @@ class CustomToolManager:
                 message_type = config.get("messageType", "none")
                 custom_message = config.get("customMessage", "")
 
+                # Handle end call reason if enabled
+                end_call_reason_enabled = config.get("endCallReason", False)
+                if end_call_reason_enabled:
+                    reason = (
+                        function_call_params.arguments.get("reason", "")
+                        or "end_call_tool"
+                    )
+                    logger.info(f"End call reason: {reason}")
+                    self._engine._gathered_context["call_disposition"] = reason
+                    call_tags = self._engine._gathered_context.get("call_tags", [])
+                    if reason not in call_tags:
+                        call_tags.extend([reason, "end_call_tool"])
+                    self._engine._gathered_context["call_tags"] = call_tags
+
                 # Send result callback first
                 await function_call_params.result_callback(
                     {"status": "success", "action": "ending_call"},

@@ -8,6 +8,13 @@ For frames with presentation timestamps (pts), like TTSTextFrame, we respect
 the timing by queuing them and sending at the appropriate time, similar to
 how base_output.py handles timed frames.
 
+Streaming vs. persisted data:
+- WebSocket receives all events in real-time (interim transcriptions, TTS text
+  chunks, function calls, metrics) for live UI feedback.
+- The logs buffer only stores final complete transcripts per turn (via
+  register_turn_handlers hooking into aggregator events), function calls,
+  and metrics — not interim/streaming data.
+
 Note: Node transition events are sent directly from PipecatEngine.set_node()
 rather than being observed here, to ensure precise timing at the moment of
 node changes.
@@ -37,17 +44,23 @@ from pipecat.frames.frames import (
 from pipecat.metrics.metrics import TTFBMetricsData
 from pipecat.observers.base_observer import BaseObserver, FramePushed
 from pipecat.processors.frame_processor import FrameDirection
+from pipecat.utils.enums import RealtimeFeedbackType
 from pipecat.utils.time import nanoseconds_to_seconds
 
 
 class RealtimeFeedbackObserver(BaseObserver):
-    """Observer that sends real-time transcription, bot response, and metrics via WebSocket.
+    """Observer that sends real-time events via WebSocket and persists final transcripts.
 
-    Observes pipeline frames and sends events for:
+    WebSocket streaming (all events for live UI):
     - User transcriptions (interim and final)
     - Bot TTS text (with pts-based timing)
     - Function calls (start/end)
-    - TTFB metrics (LLM generation time only - filters to processors containing "LLM")
+    - TTFB metrics (LLM generation time only)
+
+    Logs buffer persistence (only final data for post-call analysis):
+    - Complete user transcripts per turn (via on_user_turn_stopped)
+    - Complete assistant transcripts per turn (via on_assistant_turn_stopped)
+    - Function calls and TTFB metrics
 
     For frames with pts (presentation timestamp), we queue them and send at the
     appropriate time to sync with audio playback.
@@ -134,8 +147,8 @@ class RealtimeFeedbackObserver(BaseObserver):
                     if target_time > current_time:
                         await asyncio.sleep(target_time - current_time)
 
-                # Send the message
-                await self._send_message(message)
+                # Send the message (clock queue only has TTS text, WS-only)
+                await self._send_ws(message)
                 self._clock_queue.task_done()
             except asyncio.CancelledError:
                 break
@@ -164,11 +177,11 @@ class RealtimeFeedbackObserver(BaseObserver):
             return
         self._frames_seen.add(frame.id)
 
-        # Handle user transcriptions (interim)
+        # Handle user transcriptions (interim) - WebSocket only
         if isinstance(frame, InterimTranscriptionFrame):
-            await self._send_message(
+            await self._send_ws(
                 {
-                    "type": "rtf-user-transcription",
+                    "type": RealtimeFeedbackType.USER_TRANSCRIPTION.value,
                     "payload": {
                         "text": frame.text,
                         "final": False,
@@ -177,11 +190,12 @@ class RealtimeFeedbackObserver(BaseObserver):
                     },
                 }
             )
-        # Handle user transcriptions (final)
+        # Handle user transcriptions (final) - WebSocket only
+        # Complete turn text is persisted via register_turn_handlers
         elif isinstance(frame, TranscriptionFrame):
-            await self._send_message(
+            await self._send_ws(
                 {
-                    "type": "rtf-user-transcription",
+                    "type": RealtimeFeedbackType.USER_TRANSCRIPTION.value,
                     "payload": {
                         "text": frame.text,
                         "final": True,
@@ -190,13 +204,11 @@ class RealtimeFeedbackObserver(BaseObserver):
                     },
                 }
             )
-            # Increment turn counter on final user transcription
-            if self._logs_buffer:
-                self._logs_buffer.increment_turn()
-        # Handle bot TTS text - respect pts timing
+        # Handle bot TTS text - respect pts timing, WebSocket only
+        # Complete turn text is persisted via register_turn_handlers
         elif isinstance(frame, TTSTextFrame):
             message = {
-                "type": "rtf-bot-text",
+                "type": RealtimeFeedbackType.BOT_TEXT.value,
                 "payload": {
                     "text": frame.text,
                 },
@@ -213,7 +225,7 @@ class RealtimeFeedbackObserver(BaseObserver):
                 await self._clock_queue.put((frame.pts, frame.id, message))
             else:
                 # No pts, send immediately
-                await self._send_message(message)
+                await self._send_ws(message)
         # Handle function call in progress
         elif (
             isinstance(frame, FunctionCallInProgressFrame)
@@ -221,7 +233,7 @@ class RealtimeFeedbackObserver(BaseObserver):
         ):
             await self._send_message(
                 {
-                    "type": "rtf-function-call-start",
+                    "type": RealtimeFeedbackType.FUNCTION_CALL_START.value,
                     "payload": {
                         "function_name": frame.function_name,
                         "tool_call_id": frame.tool_call_id,
@@ -235,7 +247,7 @@ class RealtimeFeedbackObserver(BaseObserver):
         ):
             await self._send_message(
                 {
-                    "type": "rtf-function-call-end",
+                    "type": RealtimeFeedbackType.FUNCTION_CALL_END.value,
                     "payload": {
                         "function_name": frame.function_name,
                         "tool_call_id": frame.tool_call_id,
@@ -252,7 +264,7 @@ class RealtimeFeedbackObserver(BaseObserver):
                     if metric_data.processor and "LLM" in metric_data.processor:
                         await self._send_message(
                             {
-                                "type": "rtf-ttfb-metric",
+                                "type": RealtimeFeedbackType.TTFB_METRIC.value,
                                 "payload": {
                                     "ttfb_seconds": metric_data.value,
                                     "processor": metric_data.processor,
@@ -261,18 +273,77 @@ class RealtimeFeedbackObserver(BaseObserver):
                             }
                         )
 
-    async def _send_message(self, message: dict):
-        """Send message via WebSocket AND append to logs buffer, handling errors gracefully."""
-        # Send via WebSocket
+    async def _send_ws(self, message: dict):
+        """Send message via WebSocket only, handling errors gracefully."""
+        if not self._ws_sender:
+            return
         try:
+            # Inject current node info from the logs buffer
+            if self._logs_buffer and self._logs_buffer.current_node_id:
+                message = {
+                    **message,
+                    "node_id": self._logs_buffer.current_node_id,
+                    "node_name": self._logs_buffer.current_node_name,
+                }
             await self._ws_sender(message)
         except Exception as e:
-            # Log but don't fail - feedback is non-critical
             logger.debug(f"Failed to send real-time feedback message: {e}")
 
-        # Also append to logs buffer
+    async def _send_message(self, message: dict):
+        """Send message via WebSocket AND append to logs buffer."""
+        await self._send_ws(message)
+        await self._append_to_buffer(message)
+
+    async def _append_to_buffer(self, message: dict):
+        """Append message to logs buffer, handling errors gracefully."""
         if self._logs_buffer:
             try:
                 await self._logs_buffer.append(message)
             except Exception as e:
                 logger.error(f"Failed to append to logs buffer: {e}")
+
+
+def register_turn_log_handlers(
+    logs_buffer: "InMemoryLogsBuffer",
+    user_aggregator,
+    assistant_aggregator,
+):
+    """Register event handlers on aggregators to persist final turn transcripts.
+
+    Hooks into on_user_turn_stopped and on_assistant_turn_stopped to store
+    complete turn text in the logs buffer. Works for both WebRTC and telephony
+    calls — independent of WebSocket availability.
+    """
+
+    @user_aggregator.event_handler("on_user_turn_stopped")
+    async def on_user_turn_stopped(aggregator, strategy, message):
+        logs_buffer.increment_turn()
+        try:
+            await logs_buffer.append(
+                {
+                    "type": RealtimeFeedbackType.USER_TRANSCRIPTION.value,
+                    "payload": {
+                        "text": message.content,
+                        "final": True,
+                        "timestamp": message.timestamp,
+                    },
+                }
+            )
+        except Exception as e:
+            logger.error(f"Failed to append user turn to logs buffer: {e}")
+
+    @assistant_aggregator.event_handler("on_assistant_turn_stopped")
+    async def on_assistant_turn_stopped(aggregator, message):
+        if message.content:
+            try:
+                await logs_buffer.append(
+                    {
+                        "type": RealtimeFeedbackType.BOT_TEXT.value,
+                        "payload": {
+                            "text": message.content,
+                            "timestamp": message.timestamp,
+                        },
+                    }
+                )
+            except Exception as e:
+                logger.error(f"Failed to append assistant turn to logs buffer: {e}")

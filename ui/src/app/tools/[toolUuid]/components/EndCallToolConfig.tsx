@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 import { type EndCallMessageType } from "../../config";
@@ -17,6 +18,10 @@ export interface EndCallToolConfigProps {
     onMessageTypeChange: (messageType: EndCallMessageType) => void;
     customMessage: string;
     onCustomMessageChange: (message: string) => void;
+    endCallReason: boolean;
+    onEndCallReasonChange: (enabled: boolean) => void;
+    endCallReasonDescription: string;
+    onEndCallReasonDescriptionChange: (description: string) => void;
 }
 
 export function EndCallToolConfig({
@@ -28,6 +33,10 @@ export function EndCallToolConfig({
     onMessageTypeChange,
     customMessage,
     onCustomMessageChange,
+    endCallReason,
+    onEndCallReasonChange,
+    endCallReasonDescription,
+    onEndCallReasonDescriptionChange,
 }: EndCallToolConfigProps) {
     return (
         <Card>
@@ -61,6 +70,35 @@ export function EndCallToolConfig({
                         placeholder="When should the AI end the call?"
                         rows={3}
                     />
+                </div>
+
+                <div className="grid gap-2 pt-4 border-t">
+                    <div className="flex items-center space-x-2">
+                        <Switch
+                            id="end-call-reason"
+                            checked={endCallReason}
+                            onCheckedChange={onEndCallReasonChange}
+                        />
+                        <Label htmlFor="end-call-reason">Capture End Call Reason</Label>
+                    </div>
+                    <Label className="text-xs text-muted-foreground">
+                        When enabled, the AI will provide a reason for ending the call.
+                        The reason will be set as the call disposition and added to call tags for analytics.
+                    </Label>
+                    {endCallReason && (
+                        <div className="grid gap-2 pt-2">
+                            <Label>Reason Description</Label>
+                            <Label className="text-xs text-muted-foreground">
+                                Instructions shown to the AI for what kind of reason to provide
+                            </Label>
+                            <Textarea
+                                value={endCallReasonDescription}
+                                onChange={(e) => onEndCallReasonDescriptionChange(e.target.value)}
+                                placeholder="e.g., The reason for ending the call (e.g., 'voicemail_detected', 'issue_resolved', 'customer_requested')"
+                                rows={2}
+                            />
+                        </div>
+                    )}
                 </div>
 
                 <div className="grid gap-4 pt-4 border-t">

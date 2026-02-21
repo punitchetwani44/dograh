@@ -569,6 +569,14 @@ export type EndCallConfig = {
      * Custom message to play before ending the call
      */
     customMessage?: string | null;
+    /**
+     * When enabled, LLM must provide a reason for ending the call. The reason is set as call disposition and added to call tags.
+     */
+    endCallReason?: boolean;
+    /**
+     * Description shown to the LLM for the reason parameter. Used only when endCallReason is enabled.
+     */
+    endCallReasonDescription?: string | null;
 };
 
 /**

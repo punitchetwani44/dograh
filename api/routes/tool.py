@@ -55,6 +55,16 @@ class EndCallConfig(BaseModel):
     customMessage: Optional[str] = Field(
         default=None, description="Custom message to play before ending the call"
     )
+    endCallReason: bool = Field(
+        default=False,
+        description="When enabled, LLM must provide a reason for ending the call. "
+        "The reason is set as call disposition and added to call tags.",
+    )
+    endCallReasonDescription: Optional[str] = Field(
+        default=None,
+        description="Description shown to the LLM for the reason parameter. "
+        "Used only when endCallReason is enabled.",
+    )
 
 
 class TransferCallConfig(BaseModel):

@@ -9,6 +9,7 @@ import {
     updateToolApiV1ToolsToolUuidPut,
 } from "@/client/sdk.gen";
 import type { ToolResponse, TransferCallConfig as APITransferCallConfig } from "@/client/types.gen";
+import type { EndCallConfig } from "@/client/types.gen";
 import { type HttpMethod, type KeyValueItem, type ToolParameter, validateUrl } from "@/components/http";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
 
 import {
-    type EndCallConfig,
+    DEFAULT_END_CALL_REASON_DESCRIPTION,
     type EndCallMessageType,
     getCategoryConfig,
     getToolTypeLabel,
@@ -68,6 +69,15 @@ export default function ToolDetailPage() {
     // End Call form state
     const [endCallMessageType, setEndCallMessageType] = useState<EndCallMessageType>("none");
     const [endCallCustomMessage, setEndCallCustomMessage] = useState("");
+    const [endCallReason, setEndCallReason] = useState(false);
+    const [endCallReasonDescription, setEndCallReasonDescription] = useState("");
+
+    const handleEndCallReasonChange = (enabled: boolean) => {
+        setEndCallReason(enabled);
+        if (enabled && !endCallReasonDescription) {
+            setEndCallReasonDescription(DEFAULT_END_CALL_REASON_DESCRIPTION);
+        }
+    };
 
     // Transfer Call form state
     const [transferDestination, setTransferDestination] = useState("");
@@ -119,9 +129,13 @@ export default function ToolDetailPage() {
             if (config) {
                 setEndCallMessageType(config.messageType || "none");
                 setEndCallCustomMessage(config.customMessage || "");
+                setEndCallReason(config.endCallReason ?? false);
+                setEndCallReasonDescription(config.endCallReasonDescription || "");
             } else {
                 setEndCallMessageType("none");
                 setEndCallCustomMessage("");
+                setEndCallReason(false);
+                setEndCallReasonDescription("");
             }
         } else if (tool.category === "transfer_call") {
             // Populate transfer call specific fields
@@ -225,6 +239,8 @@ export default function ToolDetailPage() {
                         config: {
                             messageType: endCallMessageType,
                             customMessage: endCallMessageType === "custom" ? endCallCustomMessage : undefined,
+                            endCallReason,
+                            endCallReasonDescription: endCallReason ? endCallReasonDescription || undefined : undefined,
                         },
                     },
                 };
@@ -432,6 +448,10 @@ const data = await response.json();`;
                             onMessageTypeChange={setEndCallMessageType}
                             customMessage={endCallCustomMessage}
                             onCustomMessageChange={setEndCallCustomMessage}
+                            endCallReason={endCallReason}
+                            onEndCallReasonChange={handleEndCallReasonChange}
+                            endCallReasonDescription={endCallReasonDescription}
+                            onEndCallReasonDescriptionChange={setEndCallReasonDescription}
                         />
                     ) : isTransferCallTool ? (
                         <TransferCallToolConfig

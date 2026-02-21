@@ -1,11 +1,12 @@
 import asyncio
-import re
 import tempfile
 import wave
 from datetime import UTC, datetime
-from typing import List
+from typing import List, Optional
 
 from loguru import logger
+
+from pipecat.utils.enums import RealtimeFeedbackType
 
 
 class InMemoryAudioBuffer:
@@ -69,60 +70,6 @@ class InMemoryAudioBuffer:
         return self._total_size
 
 
-class InMemoryTranscriptBuffer:
-    """Buffer transcript data in memory during a call, then write to temp file on disconnect."""
-
-    # Compiled regex to identify user speech lines, e.g.
-    # [2025-06-29T12:34:56.789+00:00] user: hello
-    _USER_SPEECH_RE: re.Pattern[str] = re.compile(
-        r"^\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+\d{2}:\d{2}\] user: .+"
-    )
-
-    def __init__(self, workflow_run_id: int):
-        self._workflow_run_id = workflow_run_id
-        self._lines: List[str] = []
-        self._lock = asyncio.Lock()
-
-    async def append(self, transcript: str):
-        """Append transcript text to the buffer."""
-        async with self._lock:
-            self._lines.append(transcript)
-            logger.trace(
-                f"Appended transcript line to buffer for workflow {self._workflow_run_id}"
-            )
-
-    async def write_to_temp_file(self) -> str:
-        """Write transcript to a temporary text file and return the path."""
-        async with self._lock:
-            temp_file = tempfile.NamedTemporaryFile(
-                mode="w", suffix=".txt", delete=False
-            )
-            logger.debug(
-                f"Writing transcript buffer to temp file {temp_file.name} for workflow {self._workflow_run_id}"
-            )
-
-            content = "".join(self._lines)
-            temp_file.write(content)
-            temp_file.close()
-
-            logger.info(
-                f"Successfully wrote {len(content)} chars of transcript to {temp_file.name}"
-            )
-            return temp_file.name
-
-    @property
-    def is_empty(self) -> bool:
-        """Check if the buffer is empty."""
-        return len(self._lines) == 0
-
-    def contains_user_speech(self) -> bool:
-        """Return True if any buffered transcript line matches the user speech pattern."""
-        for line in self._lines:
-            if self._USER_SPEECH_RE.match(line):
-                return True
-        return False
-
-
 class InMemoryLogsBuffer:
     """Buffer real-time feedback events in memory during a call, then save to workflow run logs."""
 
@@ -130,15 +77,36 @@ class InMemoryLogsBuffer:
         self._workflow_run_id = workflow_run_id
         self._events: List[dict] = []
         self._turn_counter = 0
+        self._current_node_id: Optional[str] = None
+        self._current_node_name: Optional[str] = None
+
+    def set_current_node(self, node_id: str, node_name: str):
+        """Set the current node ID and name to be injected into subsequent events."""
+        self._current_node_id = node_id
+        self._current_node_name = node_name
+
+    @property
+    def current_node_id(self) -> Optional[str]:
+        """Get the current node ID."""
+        return self._current_node_id
+
+    @property
+    def current_node_name(self) -> Optional[str]:
+        """Get the current node name."""
+        return self._current_node_name
 
     async def append(self, event: dict):
-        """Append a feedback event to the buffer with timestamp."""
-        # Add timestamp and turn tracking
+        """Append a feedback event to the buffer with timestamp and current node."""
+        # Add timestamp, turn tracking, and current node
         timestamped_event = {
             **event,
             "timestamp": datetime.now(UTC).isoformat(),
             "turn": self._turn_counter,
         }
+        if self._current_node_id:
+            timestamped_event["node_id"] = self._current_node_id
+        if self._current_node_name:
+            timestamped_event["node_name"] = self._current_node_name
         self._events.append(timestamped_event)
         logger.trace(
             f"Appended event {event.get('type')} to logs buffer for workflow {self._workflow_run_id}"
@@ -154,6 +122,63 @@ class InMemoryLogsBuffer:
     def get_events(self) -> List[dict]:
         """Get all events for final storage."""
         return self._events
+
+    def contains_user_speech(self) -> bool:
+        """Return True if any final user transcription event has non-empty text."""
+        for event in self._events:
+            if (
+                event.get("type") == RealtimeFeedbackType.USER_TRANSCRIPTION.value
+                and event.get("payload", {}).get("final") is True
+                and event.get("payload", {}).get("text")
+            ):
+                return True
+        return False
+
+    def generate_transcript_text(self) -> str:
+        """Generate transcript text from logged events.
+
+        Filters for rtf-user-transcription (final) and rtf-bot-text events,
+        formats them as '[timestamp] user/assistant: text\n'.
+        """
+        lines: List[str] = []
+        for event in self._events:
+            event_type = event.get("type")
+            payload = event.get("payload", {})
+
+            if (
+                event_type == RealtimeFeedbackType.USER_TRANSCRIPTION.value
+                and payload.get("final") is True
+            ):
+                timestamp = payload.get("timestamp", "")
+                prefix = f"[{timestamp}] " if timestamp else ""
+                lines.append(f"{prefix}user: {payload.get('text', '')}\n")
+            elif event_type == RealtimeFeedbackType.BOT_TEXT.value:
+                timestamp = payload.get("timestamp", "")
+                prefix = f"[{timestamp}] " if timestamp else ""
+                lines.append(f"{prefix}assistant: {payload.get('text', '')}\n")
+
+        return "".join(lines)
+
+    def write_transcript_to_temp_file(self) -> Optional[str]:
+        """Write transcript to a temporary text file and return the path.
+
+        Returns None if there are no transcript events.
+        """
+        content = self.generate_transcript_text()
+        if not content:
+            return None
+
+        temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
+        logger.debug(
+            f"Writing transcript to temp file {temp_file.name} for workflow {self._workflow_run_id}"
+        )
+        temp_file.write(content)
+        temp_file.close()
+
+        logger.info(
+            f"Successfully wrote {len(content)} chars of transcript to {temp_file.name}"
+        )
+        return temp_file.name
 
     @property
     def is_empty(self) -> bool:

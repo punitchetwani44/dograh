@@ -63,7 +63,7 @@ class PipecatEngine:
         call_context_vars: dict,
         workflow_run_id: Optional[int] = None,
         node_transition_callback: Optional[
-            Callable[[str, Optional[str]], Awaitable[None]]
+            Callable[[str, str, Optional[str], Optional[str]], Awaitable[None]]
         ] = None,
         embeddings_api_key: Optional[str] = None,
         embeddings_model: Optional[str] = None,
@@ -456,14 +456,22 @@ class PipecatEngine:
 
         # Track previous node for transition event
         previous_node_name = self._current_node.name if self._current_node else None
+        previous_node_id = self._current_node.id if self._current_node else None
 
         # Set current node for all nodes (including static ones) so STT mute filter works
         self._current_node = node
 
+        # Track visited nodes in gathered context for call tags
+        nodes_visited = self._gathered_context.setdefault("nodes_visited", [])
+        if node.name not in nodes_visited:
+            nodes_visited.append(node.name)
+
         # Send node transition event if callback is provided
         if self._node_transition_callback:
             try:
-                await self._node_transition_callback(node.name, previous_node_name)
+                await self._node_transition_callback(
+                    node_id, node.name, previous_node_id, previous_node_name
+                )
             except Exception as e:
                 # Log but don't fail - feedback is non-critical
                 logger.debug(f"Failed to send node transition event: {e}")

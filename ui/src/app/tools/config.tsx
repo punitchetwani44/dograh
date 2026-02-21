@@ -3,6 +3,8 @@
 import { Cog, Globe, type LucideIcon, PhoneForwarded, PhoneOff, Puzzle } from "lucide-react";
 import { type ReactNode } from "react";
 
+import type { EndCallConfig } from "@/client/types.gen";
+
 export type ToolCategory = "http_api" | "end_call" | "transfer_call" | "native" | "integration";
 
 export type EndCallMessageType = "none" | "custom";
@@ -110,15 +112,13 @@ export function getToolTypeLabel(category: string): string {
     }
 }
 
-// End Call tool specific configuration
-export interface EndCallConfig {
-    messageType: EndCallMessageType;
-    customMessage?: string;
-}
+export const DEFAULT_END_CALL_REASON_DESCRIPTION =
+    "The reason for ending the call (e.g., 'voicemail_detected', 'issue_resolved', 'customer_requested')";
 
 export const DEFAULT_END_CALL_CONFIG: EndCallConfig = {
     messageType: "none",
     customMessage: "",
+    endCallReason: false,
 };
 
 // Transfer Call tool specific configuration

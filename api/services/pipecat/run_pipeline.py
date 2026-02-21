@@ -12,7 +12,6 @@ from api.services.pipecat.audio_config import AudioConfig, create_audio_config
 from api.services.pipecat.event_handlers import (
     register_audio_data_handler,
     register_event_handlers,
-    register_transcript_handlers,
 )
 from api.services.pipecat.in_memory_buffers import InMemoryLogsBuffer
 from api.services.pipecat.pipeline_builder import (
@@ -24,7 +23,10 @@ from api.services.pipecat.pipeline_engine_callbacks_processor import (
     PipelineEngineCallbacksProcessor,
 )
 from api.services.pipecat.pipeline_metrics_aggregator import PipelineMetricsAggregator
-from api.services.pipecat.realtime_feedback_observer import RealtimeFeedbackObserver
+from api.services.pipecat.realtime_feedback_observer import (
+    RealtimeFeedbackObserver,
+    register_turn_log_handlers,
+)
 from api.services.pipecat.service_factory import (
     create_llm_service,
     create_stt_service,
@@ -73,7 +75,7 @@ from pipecat.turns.user_stop import (
     TurnAnalyzerUserTurnStopStrategy,
 )
 from pipecat.turns.user_turn_strategies import UserTurnStrategies
-from pipecat.utils.enums import EndTaskReason
+from pipecat.utils.enums import EndTaskReason, RealtimeFeedbackType
 from pipecat.utils.run_context import set_current_run_id
 from pipecat.utils.tracing.context_registry import ContextProviderRegistry
 
@@ -511,35 +513,42 @@ async def _run_pipeline(
     # Create in-memory logs buffer early so it can be used by engine callbacks
     in_memory_logs_buffer = InMemoryLogsBuffer(workflow_run_id)
 
-    # Create node transition callback if WebSocket sender is available
-    node_transition_callback = None
+    # Create node transition callback (always logs to buffer, optionally streams to WS)
     ws_sender = get_ws_sender(workflow_run_id)
-    if ws_sender:
 
-        async def send_node_transition(
-            node_name: str, previous_node: Optional[str]
-        ) -> None:
-            """Send node transition event via WebSocket AND log to buffer."""
-            message = {
-                "type": "rtf-node-transition",
-                "payload": {
-                    "node_name": node_name,
-                    "previous_node": previous_node,
-                },
-            }
-            # Send via WebSocket
+    async def send_node_transition(
+        node_id: str,
+        node_name: str,
+        previous_node_id: Optional[str],
+        previous_node_name: Optional[str],
+    ) -> None:
+        """Send node transition event to logs buffer and optionally via WebSocket."""
+        # Update current node on the buffer so subsequent events are tagged
+        in_memory_logs_buffer.set_current_node(node_id, node_name)
+
+        message = {
+            "type": RealtimeFeedbackType.NODE_TRANSITION.value,
+            "payload": {
+                "node_id": node_id,
+                "node_name": node_name,
+                "previous_node_id": previous_node_id,
+                "previous_node_name": previous_node_name,
+            },
+        }
+        # Send via WebSocket if available
+        if ws_sender:
             try:
-                await ws_sender(message)
+                await ws_sender({**message, "node_id": node_id, "node_name": node_name})
             except Exception as e:
                 logger.debug(f"Failed to send node transition via WebSocket: {e}")
 
-            # Log to in-memory buffer
-            try:
-                await in_memory_logs_buffer.append(message)
-            except Exception as e:
-                logger.error(f"Failed to append node transition to logs buffer: {e}")
+        # Always log to in-memory buffer (node_id/node_name injected by buffer's append)
+        try:
+            await in_memory_logs_buffer.append(message)
+        except Exception as e:
+            logger.error(f"Failed to append node transition to logs buffer: {e}")
 
-        node_transition_callback = send_node_transition
+    node_transition_callback = send_node_transition
 
     # Extract embeddings configuration from user config
     embeddings_api_key = None
@@ -694,17 +703,48 @@ async def _run_pipeline(
     # Initialize the engine to set the initial context
     await engine.initialize()
 
-    # Add real-time feedback observer if WebSocket sender is available
-    # Note: ws_sender was already fetched earlier for node_transition_callback
-    if ws_sender:
-        feedback_observer = RealtimeFeedbackObserver(
-            ws_sender=ws_sender,
-            logs_buffer=in_memory_logs_buffer,
-        )
-        task.add_observer(feedback_observer)
+    # Add real-time feedback observer (always logs to buffer, streams to WS if available)
+    feedback_observer = RealtimeFeedbackObserver(
+        ws_sender=ws_sender,
+        logs_buffer=in_memory_logs_buffer,
+    )
+    task.add_observer(feedback_observer)
+
+    # Register latency observer to log user-to-bot response latency
+    if task.user_bot_latency_observer:
+
+        @task.user_bot_latency_observer.event_handler("on_latency_measured")
+        async def on_latency_measured(observer, latency_seconds):
+            message = {
+                "type": RealtimeFeedbackType.LATENCY_MEASURED.value,
+                "payload": {
+                    "latency_seconds": latency_seconds,
+                },
+            }
+            if ws_sender:
+                try:
+                    ws_message = message
+                    if in_memory_logs_buffer.current_node_id:
+                        ws_message = {
+                            **message,
+                            "node_id": in_memory_logs_buffer.current_node_id,
+                            "node_name": in_memory_logs_buffer.current_node_name,
+                        }
+                    await ws_sender(ws_message)
+                except Exception as e:
+                    logger.debug(f"Failed to send latency via WebSocket: {e}")
+            try:
+                await in_memory_logs_buffer.append(message)
+            except Exception as e:
+                logger.error(f"Failed to append latency to logs buffer: {e}")
+
+    # Register turn log handlers for all call types (WebRTC and telephony)
+    register_turn_log_handlers(
+        in_memory_logs_buffer, user_context_aggregator, assistant_context_aggregator
+    )
 
     # Register event handlers
-    in_memory_audio_buffer, in_memory_transcript_buffer = register_event_handlers(
+    in_memory_audio_buffer = register_event_handlers(
         task,
         transport,
         workflow_run_id,
@@ -716,12 +756,6 @@ async def _run_pipeline(
     )
 
     register_audio_data_handler(audio_buffer, workflow_run_id, in_memory_audio_buffer)
-    register_transcript_handlers(
-        user_context_aggregator,
-        assistant_context_aggregator,
-        workflow_run_id,
-        in_memory_transcript_buffer,
-    )
 
     try:
         # Run the pipeline
