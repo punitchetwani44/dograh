@@ -74,27 +74,27 @@ services:
     networks:
       - app-network
 
-  # api:
-  #   image: ${REGISTRY:-dograhai}/dograh-api:latest
-  #   volumes:
-  #     - shared-tmp:/tmp
-  #   environment:
-  #     # Core application config
-  #     ENVIRONMENT: "local"
-  #     LOG_LEVEL: "INFO"
+  api:
+    image: ${REGISTRY:-dograhai}/dograh-api:latest
+    volumes:
+      - shared-tmp:/tmp
+    environment:
+      # Core application config
+      ENVIRONMENT: "local"
+      LOG_LEVEL: "INFO"
 
-  #     # Replace this environment variable if you are using a custom
-  #     # domain to host the stack
-  #     BACKEND_API_ENDPOINT: "${BACKEND_API_ENDPOINT:-http://localhost:8000}"
+      # Replace this environment variable if you are using a custom
+      # domain to host the stack
+      BACKEND_API_ENDPOINT: "${BACKEND_API_ENDPOINT:-http://localhost:8000}"
 
-  #     # Database configuration (using containerized postgres)
-  #     DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/postgres"
+      # Database configuration (using containerized postgres)
+      DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/postgres"
 
-  #     # Redis configuration (using containerized redis)
-  #     REDIS_URL: "redis://:redissecret@redis:6379"
+      # Redis configuration (using containerized redis)
+      REDIS_URL: "redis://:redissecret@redis:6379"
 
-  #     # Storage configuration - using local MinIO
-  #     ENABLE_AWS_S3: "false"
+      # Storage configuration - using local MinIO
+      ENABLE_AWS_S3: "false"
 
       # MinIO
       MINIO_ENDPOINT: "minio:9000"
@@ -106,20 +106,20 @@ services:
       # FastAPI workers count
       FASTAPI_WORKERS: 1
 
-  #     # Langfuse
-  #     ENABLE_TRACING: "false"
-  #     # LANGFUSE_SECRET_KEY: ""
-  #     # LANGFUSE_PUBLIC_KEY: ""
-  #     # LANGFUSE_HOST: "https://langfuse.dograh.com"
+      # Langfuse
+      ENABLE_TRACING: "false"
+      # LANGFUSE_SECRET_KEY: ""
+      # LANGFUSE_PUBLIC_KEY: ""
+      # LANGFUSE_HOST: "https://langfuse.dograh.com"
 
-  #     # Sentry
-  #     ENABLE_TELEMETRY: "${ENABLE_TELEMETRY:-true}"
-  #     SENTRY_DSN: "https://3acdb63d5f1f70430953353b82de61e0@o4509486225096704.ingest.us.sentry.io/4510152922693632"
+      # Sentry
+      ENABLE_TELEMETRY: "${ENABLE_TELEMETRY:-true}"
+      SENTRY_DSN: "https://3acdb63d5f1f70430953353b82de61e0@o4509486225096704.ingest.us.sentry.io/4510152922693632"
 
-  #     # TURN server configuration (for WebRTC NAT traversal in remote server)
-  #     # Uses time-limited credentials via TURN REST API (HMAC-SHA1)
-  #     TURN_HOST: "${TURN_HOST:-}"
-  #     TURN_SECRET: "${TURN_SECRET:-}"
+      # TURN server configuration (for WebRTC NAT traversal in remote server)
+      # Uses time-limited credentials via TURN REST API (HMAC-SHA1)
+      TURN_HOST: "${TURN_HOST:-}"
+      TURN_SECRET: "${TURN_SECRET:-}"
 
       OSS_JWT_SECRET: "${OSS_JWT_SECRET:-ChangeMeInProduction}"
 
@@ -156,29 +156,29 @@ services:
       # Flag to enable/ disable posthog and sentry
       ENABLE_TELEMETRY: "${ENABLE_TELEMETRY:-true}"
 
-  #     # Posthog
-  #     POSTHOG_KEY: "phc_ItizB1dP6yv7ZYobbcqrpxTdbomDA8hJFSEmAMdYvIr"
-  #     POSTHOG_HOST: "https://us.posthog.com"
+      # Posthog
+      POSTHOG_KEY: "phc_ItizB1dP6yv7ZYobbcqrpxTdbomDA8hJFSEmAMdYvIr"
+      POSTHOG_HOST: "https://us.posthog.com"
 
-  #     # Sentry
-  #     SENTRY_DSN: "https://d9387fed5f80e90781f1dbd9b2c0994c@o4509486225096704.ingest.us.sentry.io/4510124708200448"
-  #   ports:
-  #     - "3010:3010"
-  #   depends_on:
-  #     api:
-  #       condition: service_healthy
-  #   healthcheck:
-  #     test:
-  #       [
-  #         "CMD-SHELL",
-  #         "wget --no-verbose --tries=1 --spider http://localhost:3010 || exit 1",
-  #       ]
-  #     interval: 30s
-  #     timeout: 10s
-  #     retries: 3
-  #     start_period: 30s
-  #   networks:
-  #     - app-network
+      # Sentry
+      SENTRY_DSN: "https://d9387fed5f80e90781f1dbd9b2c0994c@o4509486225096704.ingest.us.sentry.io/4510124708200448"
+    ports:
+      - "3010:3010"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget --no-verbose --tries=1 --spider http://localhost:3010 || exit 1",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - app-network
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -189,32 +189,32 @@ services:
     networks:
       - app-network
 
-  # coturn:
-  #   image: coturn/coturn:4.8.0
-  #   container_name: coturn
-  #   restart: unless-stopped
-  #   profiles: ["remote"]
-  #   ports:
-  #     - "3478:3478/udp"
-  #     - "3478:3478/tcp"
-  #     - "5349:5349/udp"
-  #     - "5349:5349/tcp"
-  #     - "49152-49200:49152-49200/udp"
-  #   volumes:
-  #     - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
-  #   command:
-  #     - -c
-  #     - /etc/coturn/turnserver.conf
-  #   networks:
-  #     - app-network
+  coturn:
+    image: coturn/coturn:4.8.0
+    container_name: coturn
+    restart: unless-stopped
+    profiles: ["remote"]
+    ports:
+      - "3478:3478/udp"
+      - "3478:3478/tcp"
+      - "5349:5349/udp"
+      - "5349:5349/tcp"
+      - "49152-49200:49152-49200/udp"
+    volumes:
+      - ./turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command:
+      - -c
+      - /etc/coturn/turnserver.conf
+    networks:
+      - app-network
 
 volumes:
   postgres_data:
   redis_data:
   minio-data:
     driver: local
-  # shared-tmp:
-  #   driver: local
+  shared-tmp:
+    driver: local
 
 networks:
   app-network:
