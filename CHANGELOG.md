@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.16.0](https://github.com/dograh-hq/dograh/compare/dograh-v1.15.0...dograh-v1.16.0) (2026-02-23)
+
+
+### Features
+
+* add cartesia tts ([e111cbb](https://github.com/dograh-hq/dograh/commit/e111cbb36d945acc231961313051f1b2198d95bf))
+* Add end call reason in tool calls. ([7e2de09](https://github.com/dograh-hq/dograh/commit/7e2de092ae4306ec534d4f6ad48b5ec170fffa78))
+
+
+### Bug Fixes
+
+* fix default voice of cartesia tts ([f1f4830](https://github.com/dograh-hq/dograh/commit/f1f48300128f3a89fea0beac6b67f980f37e77d0))
+* use environment variable for BACKEND_URL ([20b8dc6](https://github.com/dograh-hq/dograh/commit/20b8dc60c1c3469dadebaef9c11a6a29a2eb6f2e))
+
 ## [1.15.0](https://github.com/dograh-hq/dograh/compare/dograh-v1.14.0...dograh-v1.15.0) (2026-02-20)
 
 
