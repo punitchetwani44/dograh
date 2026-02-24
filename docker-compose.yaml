@@ -1,40 +1,65 @@
 version: "3.9"
 
 services:
-  dograh-postgres:
+  postgres:
     image: pgvector/pgvector:pg17
     container_name: dograh-postgres
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: dograh123
       POSTGRES_DB: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
 
   redis:
     image: redis:7
+    restart: unless-stopped
+    networks:
+      - app-network
 
   minio:
     image: minio/minio
+    restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     volumes:
       - minio_data:/data
+    networks:
+      - app-network
 
   api:
     image: dograhai/dograh-api:latest
-    environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:dograh123@dograh-postgres:5432/postgres
+    restart: unless-stopped
     depends_on:
-      - dograh-postgres
+      - postgres
       - redis
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:dograh123@postgres:5432/postgres
+      REDIS_URL: redis://redis:6379/0
+      OSS_JWT_SECRET: ChangeMeInProduction
+      ENABLE_TELEMETRY: "true"
+    networks:
+      - app-network
 
   ui:
     image: dograhai/dograh-ui:latest
+    restart: unless-stopped
     depends_on:
       - api
+    environment:
+      BACKEND_URL: http://api:8000
+      BACKEND_API_ENDPOINT: http://api:8000
+      ENABLE_TELEMETRY: "true"
+    networks:
+      - app-network
+
+networks:
+  app-network:
 
 volumes:
   postgres_data:
