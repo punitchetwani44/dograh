@@ -43,6 +43,11 @@ services:
       OSS_JWT_SECRET: ChangeMeInProduction
     expose:
       - "8000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dograh-api.rule=Host(`76.13.243.185`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.dograh-api.entrypoints=http"
+      - "traefik.http.services.dograh-api.loadbalancer.server.port=8000"
     networks:
       - coolify
 
@@ -52,8 +57,8 @@ services:
     depends_on:
       - api
     environment:
-      NEXT_PUBLIC_BACKEND_API_ENDPOINT: http://76.13.243.185
-      NEXT_PUBLIC_BACKEND_URL: http://76.13.243.185
+      NEXT_PUBLIC_BACKEND_API_ENDPOINT: ""
+      NEXT_PUBLIC_BACKEND_URL: ""
       ENABLE_TELEMETRY: "true"
     expose:
       - "3010"
