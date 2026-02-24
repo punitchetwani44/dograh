@@ -72,8 +72,7 @@ services:
   ui:
     image: ${REGISTRY:-dograhai}/dograh-ui:latest
     environment:
-      # 🔥 IMPORTANT FIX
-      BACKEND_URL: "http://76.13.243.185"
+      BACKEND_URL: "http://api:8000"
       NODE_ENV: "oss"
       ENABLE_TELEMETRY: "true"
     depends_on:
@@ -83,8 +82,8 @@ services:
       - coolify
     labels:
       - traefik.enable=true
-      - traefik.http.routers.dograh.rule=PathPrefix(`/`)
-      - traefik.http.routers.dograh.entrypoints=websecure
+      - traefik.http.routers.dograh.rule=Host(`76.13.243.185`)
+      - traefik.http.routers.dograh.entrypoints=http
       - traefik.http.services.dograh.loadbalancer.server.port=3010
       - traefik.docker.network=coolify
 
