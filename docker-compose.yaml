@@ -17,7 +17,7 @@ services:
 
   redis:
     image: redis:7
-    command: ["redis-server", "--requirepass", "redissecret"]
+    command: --requirepass redissecret
     volumes:
       - redis_data:/data
     healthcheck:
@@ -83,6 +83,7 @@ services:
       - traefik.http.routers.dograh.rule=Host(`76.13.243.185`)
       - traefik.http.routers.dograh.entrypoints=web
       - traefik.http.services.dograh.loadbalancer.server.port=3010
+      - traefik.docker.network=coolify
 
 volumes:
   postgres_data:
