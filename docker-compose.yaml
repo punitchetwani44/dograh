@@ -52,8 +52,8 @@ services:
     depends_on:
       - api
     environment:
-      NEXT_PUBLIC_BACKEND_API_ENDPOINT: http://api:8000
-      NEXT_PUBLIC_BACKEND_URL: http://api:8000
+      NEXT_PUBLIC_BACKEND_API_ENDPOINT: http://76.13.243.185
+      NEXT_PUBLIC_BACKEND_URL: http://76.13.243.185
       ENABLE_TELEMETRY: "true"
     expose:
       - "3010"
