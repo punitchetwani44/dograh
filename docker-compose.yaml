@@ -43,8 +43,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       ENABLE_TELEMETRY: "true"
       OSS_JWT_SECRET: ChangeMeInProduction
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"   # 🔥 THIS FIXES YOUR ISSUE
     networks:
       - coolify
 
@@ -54,8 +54,6 @@ services:
     depends_on:
       - api
     environment:
-      BACKEND_API_ENDPOINT: http://api:8000
-      BACKEND_URL: http://api:8000
       ENABLE_TELEMETRY: "true"
     expose:
       - "3010"
