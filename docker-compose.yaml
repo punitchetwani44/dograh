@@ -32,24 +32,41 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_API_CORS_ALLOW_ORIGIN: "*"
     volumes:
       - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   api:
     image: ${REGISTRY:-dograhai}/dograh-api:latest
     environment:
+      ENVIRONMENT: "production"
       DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/postgres"
       REDIS_URL: "redis://:redissecret@redis:6379"
+      ENABLE_AWS_S3: "false"
+      MINIO_ENDPOINT: "minio:9000"
+      MINIO_ACCESS_KEY: "minioadmin"
+      MINIO_SECRET_KEY: "minioadmin"
+      MINIO_BUCKET: "voice-audio"
+      MINIO_SECURE: "false"
       OSS_JWT_SECRET: "ChangeMeInProduction"
     depends_on:
-      - postgres
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     networks:
       - default
       - coolify
     labels:
       - traefik.enable=true
-      - traefik.http.routers.dograh-api.rule=Host(`76.13.243.185`) && PathPrefix(`/api`)
+      - traefik.http.routers.dograh-api.rule=Host(`76.13.243.185`) && (PathPrefix(`/api`) || PathPrefix(`/auth`))
       - traefik.http.routers.dograh-api.entrypoints=http
       - traefik.http.services.dograh-api.loadbalancer.server.port=8000
       - traefik.docker.network=coolify
@@ -58,6 +75,7 @@ services:
     image: ${REGISTRY:-dograhai}/dograh-ui:latest
     environment:
       NODE_ENV: "oss"
+      ENABLE_TELEMETRY: "true"
     depends_on:
       - api
     networks:
@@ -65,7 +83,7 @@ services:
       - coolify
     labels:
       - traefik.enable=true
-      - traefik.http.routers.dograh.rule=Host(`76.13.243.185`)
+      - traefik.http.routers.dograh.rule=Host(`76.13.243.185`) && !PathPrefix(`/api`) && !PathPrefix(`/auth`)
       - traefik.http.routers.dograh.entrypoints=http
       - traefik.http.services.dograh.loadbalancer.server.port=3010
       - traefik.docker.network=coolify
@@ -74,6 +92,9 @@ volumes:
   postgres_data:
   redis_data:
   minio-data:
+  redis_data:
+  postgres_data:
+  shared-tmp:
 
 networks:
   coolify:
