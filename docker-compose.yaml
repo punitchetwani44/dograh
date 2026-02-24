@@ -35,6 +35,11 @@ services:
       MINIO_API_CORS_ALLOW_ORIGIN: "*"
     volumes:
       - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   api:
     image: ${REGISTRY:-dograhai}/dograh-api:latest
@@ -61,21 +66,25 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_healthy
 
   ui:
     image: ${REGISTRY:-dograhai}/dograh-ui:latest
     environment:
-      BACKEND_URL: "http://api:8000"
+      # 🔥 IMPORTANT FIX
+      BACKEND_URL: "http://76.13.243.185"
       NODE_ENV: "oss"
       ENABLE_TELEMETRY: "true"
     depends_on:
       - api
     networks:
+      - default
       - coolify
     labels:
       - traefik.enable=true
       - traefik.http.routers.dograh.rule=PathPrefix(`/`)
-      - traefik.http.routers.dograh.entrypoints=http
+      - traefik.http.routers.dograh.entrypoints=websecure
       - traefik.http.services.dograh.loadbalancer.server.port=3010
       - traefik.docker.network=coolify
 
