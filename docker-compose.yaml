@@ -48,7 +48,6 @@ services:
     environment:
       ENVIRONMENT: "local"
       LOG_LEVEL: "INFO"
-      BACKEND_API_ENDPOINT: "http://api:8000"
       DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/postgres"
       REDIS_URL: "redis://:redissecret@redis:6379"
       ENABLE_AWS_S3: "false"
@@ -68,11 +67,19 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+    networks:
+      - default
+      - coolify
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dograh-api.rule=Host(`76.13.243.185`) && PathPrefix(`/api`)
+      - traefik.http.routers.dograh-api.entrypoints=http
+      - traefik.http.services.dograh-api.loadbalancer.server.port=8000
+      - traefik.docker.network=coolify
 
   ui:
     image: ${REGISTRY:-dograhai}/dograh-ui:latest
     environment:
-      BACKEND_URL: "http://api:8000"
       NODE_ENV: "oss"
       ENABLE_TELEMETRY: "true"
     depends_on:
