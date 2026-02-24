@@ -32,41 +32,18 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-      MINIO_API_CORS_ALLOW_ORIGIN: "*"
     volumes:
       - minio-data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   api:
     image: ${REGISTRY:-dograhai}/dograh-api:latest
-    volumes:
-      - shared-tmp:/tmp
     environment:
-      ENVIRONMENT: "local"
-      LOG_LEVEL: "INFO"
       DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/postgres"
       REDIS_URL: "redis://:redissecret@redis:6379"
-      ENABLE_AWS_S3: "false"
-      MINIO_ENDPOINT: "minio:9000"
-      MINIO_ACCESS_KEY: "minioadmin"
-      MINIO_SECRET_KEY: "minioadmin"
-      MINIO_BUCKET: "voice-audio"
-      MINIO_SECURE: "false"
-      FASTAPI_WORKERS: 1
-      ENABLE_TRACING: "false"
-      ENABLE_TELEMETRY: "true"
       OSS_JWT_SECRET: "ChangeMeInProduction"
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
+      - postgres
+      - redis
     networks:
       - default
       - coolify
@@ -81,7 +58,6 @@ services:
     image: ${REGISTRY:-dograhai}/dograh-ui:latest
     environment:
       NODE_ENV: "oss"
-      ENABLE_TELEMETRY: "true"
     depends_on:
       - api
     networks:
@@ -98,7 +74,6 @@ volumes:
   postgres_data:
   redis_data:
   minio-data:
-  shared-tmp:
 
 networks:
   coolify:
