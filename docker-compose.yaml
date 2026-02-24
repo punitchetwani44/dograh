@@ -1,3 +1,5 @@
+version: "3.9"
+
 services:
   postgres:
     image: pgvector/pgvector:pg17
@@ -76,6 +78,11 @@ services:
     depends_on:
       api:
         condition: service_started
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dograh.rule=HostRegexp(`{host:.+}`)
+      - traefik.http.routers.dograh.entrypoints=web
+      - traefik.http.services.dograh.loadbalancer.server.port=3010
 
 volumes:
   postgres_data:
