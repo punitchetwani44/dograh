@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: pgvector/pgvector:pg17
@@ -43,8 +41,8 @@ services:
       REDIS_URL: redis://redis:6379/0
       ENABLE_TELEMETRY: "true"
       OSS_JWT_SECRET: ChangeMeInProduction
-    ports:
-      - "8000:8000"   # 🔥 THIS FIXES YOUR ISSUE
+    expose:
+      - "8000"
     networks:
       - coolify
 
@@ -54,6 +52,8 @@ services:
     depends_on:
       - api
     environment:
+      NEXT_PUBLIC_BACKEND_API_ENDPOINT: http://api:8000
+      NEXT_PUBLIC_BACKEND_URL: http://api:8000
       ENABLE_TELEMETRY: "true"
     expose:
       - "3010"
