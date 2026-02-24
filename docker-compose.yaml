@@ -3,36 +3,38 @@ version: "3.9"
 services:
   postgres:
     image: pgvector/pgvector:pg17
+    restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: dograh123
       POSTGRES_DB: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 3s
-      timeout: 3s
+      interval: 5s
+      timeout: 5s
       retries: 10
 
   redis:
     image: redis:7
+    restart: always
     command: --requirepass redissecret
     volumes:
       - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "redissecret", "ping"]
-      interval: 3s
-      timeout: 10s
+      interval: 5s
+      timeout: 5s
       retries: 10
 
   minio:
     image: minio/minio
+    restart: always
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-      MINIO_API_CORS_ALLOW_ORIGIN: "*"
     volumes:
       - minio-data:/data
     healthcheck:
@@ -43,11 +45,10 @@ services:
 
   api:
     image: ${REGISTRY:-dograhai}/dograh-api:latest
+    restart: always
     environment:
-      ENVIRONMENT: "production"
-      DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/postgres"
+      DATABASE_URL: "postgresql+asyncpg://postgres:dograh123@postgres:5432/postgres"
       REDIS_URL: "redis://:redissecret@redis:6379"
-      ENABLE_AWS_S3: "false"
       MINIO_ENDPOINT: "minio:9000"
       MINIO_ACCESS_KEY: "minioadmin"
       MINIO_SECRET_KEY: "minioadmin"
@@ -73,9 +74,9 @@ services:
 
   ui:
     image: ${REGISTRY:-dograhai}/dograh-ui:latest
+    restart: always
     environment:
       NODE_ENV: "oss"
-      ENABLE_TELEMETRY: "true"
     depends_on:
       - api
     networks:
@@ -92,9 +93,6 @@ volumes:
   postgres_data:
   redis_data:
   minio-data:
-  redis_data:
-  postgres_data:
-  shared-tmp:
 
 networks:
   coolify:
