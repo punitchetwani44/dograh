@@ -32,14 +32,8 @@ services:
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
-      MINIO_API_CORS_ALLOW_ORIGIN: "*"
     volumes:
       - minio-data:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   api:
     image: ${REGISTRY:-dograhai}/dograh-api:latest
@@ -48,25 +42,18 @@ services:
     environment:
       ENVIRONMENT: "local"
       LOG_LEVEL: "INFO"
-      BACKEND_API_ENDPOINT: "http://api:8000"
       DATABASE_URL: "postgresql+asyncpg://postgres:postgres@postgres:5432/postgres"
       REDIS_URL: "redis://:redissecret@redis:6379"
-      ENABLE_AWS_S3: "false"
       MINIO_ENDPOINT: "minio:9000"
       MINIO_ACCESS_KEY: "minioadmin"
       MINIO_SECRET_KEY: "minioadmin"
       MINIO_BUCKET: "voice-audio"
       MINIO_SECURE: "false"
-      FASTAPI_WORKERS: 1
-      ENABLE_TRACING: "false"
-      ENABLE_TELEMETRY: "true"
       OSS_JWT_SECRET: "ChangeMeInProduction"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      minio:
         condition: service_healthy
 
   ui:
@@ -74,10 +61,11 @@ services:
     environment:
       BACKEND_URL: "http://api:8000"
       NODE_ENV: "oss"
-      ENABLE_TELEMETRY: "true"
     depends_on:
-      api:
-        condition: service_started
+      - api
+    networks:
+      - default
+      - coolify
     labels:
       - traefik.enable=true
       - traefik.http.routers.dograh.rule=Host(`76.13.243.185`)
@@ -90,3 +78,7 @@ volumes:
   redis_data:
   minio-data:
   shared-tmp:
+
+networks:
+  coolify:
+    external: true
