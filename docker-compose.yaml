@@ -57,6 +57,7 @@ services:
     depends_on:
       - api
     environment:
+      NEXT_PUBLIC_STACK_PROJECT_ID: b1c07f0b-14ae-4dd1-a1bd-22bed1f0a58b
       NEXT_PUBLIC_BACKEND_API_ENDPOINT: ""
       NEXT_PUBLIC_BACKEND_URL: ""
       ENABLE_TELEMETRY: "true"
