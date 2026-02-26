@@ -46,6 +46,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.dograh-api.rule=Host(`76.13.243.185`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.dograh-api.priority=100"
       - "traefik.http.routers.dograh-api.entrypoints=http"
       - "traefik.http.services.dograh-api.loadbalancer.server.port=8000"
     networks:
@@ -66,6 +67,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.dograh.rule=Host(`76.13.243.185`)"
+      - "traefik.http.routers.dograh.priority=1"
       - "traefik.http.routers.dograh.entrypoints=http"
       - "traefik.http.services.dograh.loadbalancer.server.port=3010"
     networks:
