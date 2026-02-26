@@ -41,6 +41,8 @@ ENV NEXT_TELEMETRY_DISABLED="1"
 ENV NEXT_PUBLIC_CHATWOOT_URL="https://chat.dograh.com"
 ENV NEXT_PUBLIC_CHATWOOT_TOKEN="3fkFx2mCEjNHjM9gaNc4A82X"
 ENV BACKEND_URL="http://api:8000"
+ENV NEXT_PUBLIC_BACKEND_URL="https://api.chat.automa8.it"
+ENV NEXT_PUBLIC_BACKEND_API_ENDPOINT="https://api.chat.automa8.it"
 
 # Build the application with standalone mode
 # Increase Node.js heap size to prevent out-of-memory errors during build
