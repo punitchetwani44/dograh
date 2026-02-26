@@ -36,11 +36,21 @@ services:
     depends_on:
       - postgres
       - redis
+      - minio
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:dograh123@dograh-postgres:5432/postgres
       REDIS_URL: redis://redis:6379/0
       ENABLE_TELEMETRY: "true"
       OSS_JWT_SECRET: ChangeMeInProduction
+
+      STORAGE_BACKEND: minio
+      MINIO_ENDPOINT: minio:9000
+      MINIO_PUBLIC_ENDPOINT: 76.13.243.185
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+      MINIO_BUCKET: voice-audio
+      MINIO_SECURE: "false"
+
     expose:
       - "8000"
     labels:
