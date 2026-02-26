@@ -31,7 +31,7 @@ services:
       - coolify
 
   api:
-    image: dograhai/dograh-api@sha256:08b1df51a84c19d0ed495a366adf2285183bc058a5584c711dcb9af170b1b536
+    image: dograhai/dograh-api:latest
     restart: unless-stopped
     depends_on:
       - postgres
@@ -41,10 +41,6 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:dograh123@dograh-postgres:5432/postgres
       REDIS_URL: redis://redis:6379/0
 
-      # Stack Auth
-      NEXT_PUBLIC_STACK_PROJECT_ID: b1c07f0b-14ae-4dd1-a1bd-22bed1f0a58b
-
-      # MinIO FIX (critical)
       STORAGE_BACKEND: minio
       MINIO_ENDPOINT: minio:9000
       MINIO_ACCESS_KEY: minioadmin
@@ -60,7 +56,7 @@ services:
 
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dograh-api.rule=Host(`76.13.243.185`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.dograh-api.rule=Host(`chat.automa8.it`) && PathPrefix(`/api`)"
       - "traefik.http.routers.dograh-api.entrypoints=http"
       - "traefik.http.services.dograh-api.loadbalancer.server.port=8000"
 
@@ -68,7 +64,7 @@ services:
       - coolify
 
   ui:
-    image: dograhai/dograh-ui@sha256:ce58976ac0cfb6234cb342a7cf15ba0c1d47c584c27b0ae718e2f2a8dca3b67c
+    image: dograhai/dograh-ui:latest
     restart: unless-stopped
     depends_on:
       - api
@@ -77,13 +73,16 @@ services:
       NEXT_PUBLIC_BACKEND_URL: ""
       NEXT_PUBLIC_BACKEND_API_ENDPOINT: ""
       ENABLE_TELEMETRY: "false"
+
     expose:
       - "3010"
+
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.dograh.rule=Host(`76.13.243.185`)"
+      - "traefik.http.routers.dograh.rule=Host(`chat.automa8.it`)"
       - "traefik.http.routers.dograh.entrypoints=http"
       - "traefik.http.services.dograh.loadbalancer.server.port=3010"
+
     networks:
       - coolify
 
