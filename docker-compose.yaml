@@ -54,14 +54,6 @@ services:
     expose:
       - "8000"
 
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dograh-api.rule=Host(`chat.automa8.it`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.dograh-api.entrypoints=http,https"
-      - "traefik.http.routers.dograh-api.tls=true"
-      - "traefik.http.routers.dograh-api.tls.certresolver=letsencrypt"
-      - "traefik.http.services.dograh-api.loadbalancer.server.port=8000"
-
     networks:
       - coolify
 
@@ -78,14 +70,6 @@ services:
 
     expose:
       - "3010"
-
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.dograh.rule=Host(`chat.automa8.it`)"
-      - "traefik.http.routers.dograh.entrypoints=http,https"
-      - "traefik.http.routers.dograh.tls=true"
-      - "traefik.http.routers.dograh.tls.certresolver=letsencrypt"
-      - "traefik.http.services.dograh.loadbalancer.server.port=3010"
 
     networks:
       - coolify
