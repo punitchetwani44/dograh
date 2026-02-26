@@ -51,7 +51,7 @@ services:
       ENABLE_TELEMETRY: "false"
       OSS_JWT_SECRET: ChangeMeInProduction
 
-    expose:
+    ports:
       - "8000"
 
     networks:
@@ -68,7 +68,7 @@ services:
       NEXT_PUBLIC_BACKEND_API_ENDPOINT: https://chat.automa8.it
       ENABLE_TELEMETRY: "false"
 
-    expose:
+    ports:
       - "3010"
 
     networks:
